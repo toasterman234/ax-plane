@@ -31,6 +31,11 @@ export const AgentConfigSchema = z.object({
     kernelInject: z.boolean().default(true),
     injectLimit: z.number().int().min(0).max(20).default(5),
   }).default({ kernelInject: true, injectLimit: 5 }),
+  lab: z.object({
+    optimizerType: z.string(),
+    optimizedProgram: z.unknown(),
+    optimizedProgramSummary: z.string().optional(),
+  }).optional(),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;

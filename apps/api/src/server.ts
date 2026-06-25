@@ -159,6 +159,10 @@ const OptimizeAgentSchema = z.object({
   suiteId: z.string().uuid(),
   mode: z.enum(['mock', 'real']).default('mock'),
   optimizerType: z.enum(['ax-native-mock', 'ax-native']).default('ax-native-mock'),
+  optimizerConfig: z.object({
+    maxMetricCalls: z.number().int().min(1).max(100).optional(),
+    verbose: z.boolean().optional(),
+  }).optional(),
 });
 
 async function loadAgentConfig(agentId: string) {
@@ -501,6 +505,7 @@ app.post('/agents/:id/lab/optimize', async (c) => {
       agentId,
       suiteId: payload.suiteId,
       optimizerType: payload.optimizerType,
+      optimizerConfig: payload.optimizerConfig,
       mode: payload.mode,
       runAgent: runAgentForConfig,
       parseAgentConfig: parseAgentConfigJson,
@@ -510,8 +515,8 @@ app.post('/agents/:id/lab/optimize', async (c) => {
     const candidate = await repo.getAgentCandidate(result.candidateId);
     return c.json({ ...result, optimizationRun, candidate }, 201);
   } catch (error) {
-    if (error instanceof Error && error.message.includes('Real Ax optimization')) {
-      return c.json({ error: error.message }, 501);
+    if (error instanceof Error && error.message.includes('API key is required')) {
+      return c.json({ error: error.message }, 400);
     }
     throw error;
   }

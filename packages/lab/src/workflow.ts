@@ -1,4 +1,5 @@
 import type { AgentConfig } from '@axplane/agents';
+import { optimizeAxAgent } from '@axplane/ax-adapter';
 import type { EvalRepository, RunAgentFn } from '@axplane/eval';
 import { executeEvalRun } from '@axplane/eval';
 import { buildEvalComparison, metricsFromEvalRun, type CaseRunSnapshot } from './comparison';
@@ -6,6 +7,18 @@ import { mockOptimizeAgent } from './mock-optimizer';
 import type { OptimizationWorkflowResult, OptimizerType } from './types';
 
 export type LabRepository = EvalRepository & {
+  getEvalSuite(suiteId: string): Promise<{
+    id: string;
+    name: string;
+    description: string;
+    cases: Array<{
+      id: string;
+      name: string;
+      taskText: string;
+      criteria: import('@axplane/eval').EvalCriterion[];
+      sortOrder: number;
+    }>;
+  } | null>;
   createOptimizationRun(input: {
     agentId: string;
     suiteId: string;
@@ -57,6 +70,7 @@ export type ExecuteOptimizationArgs = {
   agentId: string;
   suiteId: string;
   optimizerType?: OptimizerType;
+  optimizerConfig?: Record<string, unknown>;
   mode?: 'mock' | 'real';
   runAgent: RunAgentFn;
   parseAgentConfig: (json: unknown) => AgentConfig;
@@ -90,13 +104,30 @@ async function collectCaseSnapshots(
   );
 }
 
-function optimizeConfig(
+async function optimizeConfig(
   agentConfig: AgentConfig,
   optimizerType: OptimizerType,
+  suiteId: string,
+  repo: LabRepository,
+  mode: 'mock' | 'real',
   optimizerConfig?: Record<string, unknown>,
 ) {
   if (optimizerType === 'ax-native') {
-    throw new Error('Real Ax optimization is not wired yet — use ax-native-mock');
+    if (mode !== 'real') {
+      throw new Error('ax-native optimizer requires mode=real and a configured LLM API key (AX_API_KEY)');
+    }
+    const suite = await repo.getEvalSuite(suiteId);
+    if (!suite) throw new Error(`Eval suite not found: ${suiteId}`);
+    return optimizeAxAgent({
+      agentConfig,
+      evalCases: suite.cases,
+      optimizerConfig: {
+        maxMetricCalls: typeof optimizerConfig?.maxMetricCalls === 'number'
+          ? optimizerConfig.maxMetricCalls
+          : undefined,
+        verbose: optimizerConfig?.verbose === true,
+      },
+    });
   }
   return mockOptimizeAgent({
     agentId: agentConfig.id,
@@ -117,6 +148,7 @@ export async function executeOptimizationWorkflow(
     agentId: args.agentId,
     suiteId: args.suiteId,
     optimizerType,
+    optimizerConfig: args.optimizerConfig,
   });
 
   try {
@@ -130,7 +162,14 @@ export async function executeOptimizationWorkflow(
       parseAgentConfig: args.parseAgentConfig,
     });
 
-    const optimized = optimizeConfig(agentConfig, optimizerType);
+    const optimized = await optimizeConfig(
+      agentConfig,
+      optimizerType,
+      args.suiteId,
+      args.repo,
+      mode,
+      args.optimizerConfig,
+    );
     const candidate = await args.repo.createAgentCandidate({
       agentId: args.agentId,
       sourceOptimizationRunId: optimizationRun.id,

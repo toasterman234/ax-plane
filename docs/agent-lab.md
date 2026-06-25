@@ -35,18 +35,28 @@ Default optimizer: `ax-native-mock`
 
 Mock optimization is intentionally boring: it proves the control-plane loop without requiring `agent.optimize()`.
 
-## Real Ax optimization (future)
+## Real Ax optimization (`ax-native`)
 
-`optimizerType: ax-native` is reserved for wiring `agent.optimize()` from `@ax-llm/ax`. The API returns **501** until that adapter is implemented.
+When `optimizerType` is `ax-native` and `mode` is `real`:
 
-Planned flow:
+1. Converts eval suite cases into `agent.optimize()` tasks (`input` + `criteria` + optional `expectedActions`).
+2. Builds an eval-safe in-memory tool stub layer (no host side effects during tuning).
+3. Runs `agent.optimize()` with bounded `maxMetricCalls` (default **12**, override via `AXPLANE_OPTIMIZE_MAX_METRIC_CALLS` or API `optimizerConfig`).
+4. Stores `axSerializeOptimizedProgram` output on the candidate config under `lab.optimizedProgram`.
+5. Candidate eval runs apply the artifact via `applyOptimization()` on the RLM `agent()` path.
 
-```txt
-eval tasks (input + criteria)
-  → agent.optimize(...)
-  → axSerializeOptimizedProgram artifact
-  → candidate eval
-  → human promote → agent_versions
+Requirements:
+
+- Agent `mode` must be **`rlm`** (agent pipeline).
+- `AX_API_KEY` / cliproxy must be configured.
+- Optimized candidates auto-route through the **rlm** execution path even if `AXPLANE_REAL_STRATEGY=native`.
+
+```env
+AXPLANE_EXECUTION_MODE=real
+AX_API_KEY=sk-cliproxy
+AX_BASE_URL=http://127.0.0.1:8317/v1
+AX_MODEL=gemini-3-flash
+AXPLANE_OPTIMIZE_MAX_METRIC_CALLS=12
 ```
 
 DSPy remains a future sidecar (`dspy-sidecar` optimizer type) — not part of v1.

@@ -2,13 +2,19 @@ import type { Repositories } from '@axplane/db';
 import type { AgentConfig } from '@axplane/agents';
 import { PendingApprovalError } from '@axplane/policy';
 import { buildAxFunctions } from './build-functions';
+import { createLlm } from './create-llm';
 import { guardedHostTool } from './guarded-tool';
 import { resolveDescriptionWithMemoryKernel } from './memory-context';
-import { describeModelResolution, resolveLlmConfig, type LlmConfig } from './llm-config';
+import { describeModelResolution, resolveLlmConfig } from './llm-config';
+import { applyLabArtifactIfPresent } from './optimize-agent';
 import { readRunResume, type RunResumeCheckpoint } from './resume';
 
 export type { LlmConfig, ResolvedModelInfo, ModelResolutionSource } from './llm-config';
 export { resolveLlmConfig, describeModelResolution } from './llm-config';
+export { optimizeAxAgent, applyLabArtifactIfPresent } from './optimize-agent';
+export type { OptimizeAxAgentInput, OptimizeAxAgentResult } from './optimize-agent';
+export { evalCaseToOptimizeTask, criteriaTextFromEvalCriteria } from './optimize-tasks';
+export { buildEvalSafeAxFunctions, stubToolResult } from './optimize-tools';
 
 export type RunAxAgentArgs = {
   runId: string;
@@ -40,15 +46,6 @@ async function recordModelResolution(
     ...describeModelResolution(agentConfig, 'primary'),
     mode: 'real',
   });
-}
-
-function createLlm(ax: typeof import('@ax-llm/ax'), config: LlmConfig) {
-  return ax.ai({
-    name: config.provider,
-    apiKey: config.apiKey,
-    ...(config.apiURL ? { apiURL: config.apiURL } : {}),
-    config: { model: config.model, temperature: config.temperature },
-  } as never);
 }
 
 async function resolveRunDescription(args: RunAxAgentArgs) {
@@ -324,6 +321,8 @@ export async function runRealAxRlmAgent(args: RunAxAgentArgs) {
     },
   });
 
+  await applyLabArtifactIfPresent(axAgent, agentConfig);
+
   const output = await axAgent.forward(llm, input);
   await captureAxProgramTelemetry(repo, runId, axAgent);
   await repo.updateRunStatus(runId, 'completed', { outputJson: output });
@@ -332,7 +331,9 @@ export async function runRealAxRlmAgent(args: RunAxAgentArgs) {
 }
 
 export async function runRealAxAgent(args: RunAxAgentArgs) {
-  const strategy = process.env.AXPLANE_REAL_STRATEGY ?? 'native';
+  const strategy = args.agentConfig.lab?.optimizedProgram
+    ? 'rlm'
+    : (process.env.AXPLANE_REAL_STRATEGY ?? 'native');
   return strategy === 'native' ? runRealAxNativeAgent(args) : runRealAxRlmAgent(args);
 }
 

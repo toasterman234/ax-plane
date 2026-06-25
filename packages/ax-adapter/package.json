@@ -13,6 +13,7 @@
     "@ax-llm/ax": "^22.0.7",
     "@axplane/agents": "workspace:*",
     "@axplane/db": "workspace:*",
+    "@axplane/eval": "workspace:*",
     "@axplane/events": "workspace:*",
     "@axplane/host-tools": "workspace:*",
     "@axplane/memory": "workspace:*",

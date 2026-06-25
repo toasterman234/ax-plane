@@ -83,6 +83,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [suiteId, setSuiteId] = useState('');
   const [mode, setMode] = useState<'mock' | 'real'>('mock');
+  const [optimizerType, setOptimizerType] = useState<'ax-native-mock' | 'ax-native'>('ax-native-mock');
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [lastOptimization, setLastOptimization] = useState<{
     optimizationRunId: string;
@@ -152,7 +153,11 @@ export function AgentLab({ agentId }: { agentId: string }) {
       candidateSummary: EvalRunSummary;
     }>(`/agents/${agentId}/lab/optimize`, {
       method: 'POST',
-      body: JSON.stringify({ suiteId: activeSuiteId, mode, optimizerType: 'ax-native-mock' }),
+        body: JSON.stringify({
+          suiteId: activeSuiteId,
+          mode: optimizerType === 'ax-native' ? 'real' : mode,
+          optimizerType,
+        }),
     }),
     onSuccess: async (result) => {
       setLastOptimization(result);
@@ -208,7 +213,8 @@ export function AgentLab({ agentId }: { agentId: string }) {
       <div>
         <h1 className="text-2xl font-bold">Agent Lab</h1>
         <p className="text-sm text-slate-400">
-          Eval → optimize → compare → promote for <span className="text-slate-200">{agent.data.name}</span>. Mock mode works without API keys.
+          Eval → optimize → compare → promote for <span className="text-slate-200">{agent.data.name}</span>.
+          Mock optimizer works without API keys; <span className="text-slate-300">ax-native</span> calls <code className="text-xs">agent.optimize()</code> in real mode.
         </p>
       </div>
 
@@ -229,7 +235,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
         {(suites.data ?? []).length === 0 ? (
           <p className="text-sm text-slate-500">No eval suites for this agent yet.</p>
         ) : (
-          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto]">
             <select
               className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
               value={activeSuiteId}
@@ -241,11 +247,20 @@ export function AgentLab({ agentId }: { agentId: string }) {
             </select>
             <select
               className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-              value={mode}
+              value={optimizerType}
+              onChange={(e) => setOptimizerType(e.target.value as 'ax-native-mock' | 'ax-native')}
+            >
+              <option value="ax-native-mock">optimizer: mock</option>
+              <option value="ax-native">optimizer: ax-native</option>
+            </select>
+            <select
+              className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              value={optimizerType === 'ax-native' ? 'real' : mode}
+              disabled={optimizerType === 'ax-native'}
               onChange={(e) => setMode(e.target.value as 'mock' | 'real')}
             >
-              <option value="mock">mock</option>
-              <option value="real">real</option>
+              <option value="mock">mode: mock</option>
+              <option value="real">mode: real</option>
             </select>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => baselineEval.mutate()} disabled={busy || !activeSuiteId}>

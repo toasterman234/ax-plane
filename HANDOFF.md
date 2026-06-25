@@ -60,7 +60,7 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 | Slice | Deliverable | Status |
 |-------|-------------|--------|
 | **Mock optimize loop** | `optimization_runs`, `agent_candidates`, Agent Lab tab, promote → `agent_versions` | ✅ |
-| **Real `agent.optimize()`** | `ax-native` optimizer type | ❌ (501 until wired) |
+| **Real `agent.optimize()`** | `ax-native` optimizer via `@axplane/ax-adapter` | ✅ |
 
 ### Runtime layer
 
@@ -427,9 +427,8 @@ You inherit a **working MVP control plane** through **Step I** (memory, eval, gr
 
 **Suggested next work (pick one):**
 
-1. **Real Ax optimization** — wire `agent.optimize()` for `ax-native` in Agent Lab
-2. **Governed pi runtime** — implement `piRuntimeAdapter` against `~/Projects/pi`
-3. **Scheduling** — delayed/cron run enqueue
-4. **LLM routing** — replace keyword-only router with optional model-based classification
+1. **Governed pi runtime** — implement `piRuntimeAdapter` against `~/Projects/pi`
+2. **Scheduling** — delayed/cron run enqueue
+3. **LLM routing** — replace keyword-only router with optional model-based classification
 
 **Start here:** read this file → `README.md` → `pnpm db:migrate` → confirm `8797/health` → open **http://localhost:3010** → walk §11 happy path.

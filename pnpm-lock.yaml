@@ -195,6 +195,9 @@ importers:
       '@axplane/db':
         specifier: workspace:*
         version: link:../db
+      '@axplane/eval':
+        specifier: workspace:*
+        version: link:../eval
       '@axplane/events':
         specifier: workspace:*
         version: link:../events
@@ -314,6 +317,9 @@ importers:
       '@axplane/agents':
         specifier: workspace:*
         version: link:../agents
+      '@axplane/ax-adapter':
+        specifier: workspace:*
+        version: link:../ax-adapter
       '@axplane/eval':
         specifier: workspace:*
         version: link:../eval
