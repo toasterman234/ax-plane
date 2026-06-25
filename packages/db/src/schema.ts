@@ -159,10 +159,49 @@ export const graphWorkflows = pgTable('graph_workflows', {
 
 export const evalSuites = pgTable('eval_suites', {
   id: uuid('id').primaryKey().defaultRandom(),
+  agentId: text('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  agentIdx: index('eval_suites_agent_idx').on(table.agentId),
+}));
+
+export const optimizationRuns = pgTable('optimization_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+  suiteId: uuid('suite_id').notNull().references(() => evalSuites.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('running'),
+  optimizerType: text('optimizer_type').notNull().default('ax-native-mock'),
+  optimizerConfig: jsonb('optimizer_config').notNull().default(sql`'{}'::jsonb`),
+  baselineEvalRunId: uuid('baseline_eval_run_id').references((): AnyPgColumn => evalRuns.id, { onDelete: 'set null' }),
+  candidateEvalRunId: uuid('candidate_eval_run_id').references((): AnyPgColumn => evalRuns.id, { onDelete: 'set null' }),
+  candidateId: uuid('candidate_id').references((): AnyPgColumn => agentCandidates.id, { onDelete: 'set null' }),
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  agentIdx: index('optimization_runs_agent_idx').on(table.agentId, table.createdAt),
+}));
+
+export const agentCandidates = pgTable('agent_candidates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+  sourceOptimizationRunId: uuid('source_optimization_run_id').references(() => optimizationRuns.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  status: text('status').notNull().default('draft'),
+  artifactJson: jsonb('artifact_json').notNull(),
+  artifactText: text('artifact_text'),
+  baselineScore: integer('baseline_score'),
+  candidateScore: integer('candidate_score'),
+  metricsJson: jsonb('metrics_json').notNull().default(sql`'{}'::jsonb`),
+  promotedVersionId: uuid('promoted_version_id').references(() => agentVersions.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  promotedAt: timestamp('promoted_at', { withTimezone: true }),
+}, (table) => ({
+  agentIdx: index('agent_candidates_agent_idx').on(table.agentId, table.createdAt),
+}));
 
 export const evalCases = pgTable('eval_cases', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -181,6 +220,8 @@ export const evalRuns = pgTable('eval_runs', {
   suiteId: uuid('suite_id').notNull().references(() => evalSuites.id, { onDelete: 'cascade' }),
   agentId: text('agent_id').notNull().references(() => agents.id),
   agentVersionId: uuid('agent_version_id').references(() => agentVersions.id),
+  candidateId: uuid('candidate_id').references(() => agentCandidates.id, { onDelete: 'set null' }),
+  runLabel: text('run_label'),
   status: text('status').notNull().default('running'),
   mode: text('mode').notNull().default('mock'),
   summaryJson: jsonb('summary_json'),

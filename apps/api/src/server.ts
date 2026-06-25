@@ -21,7 +21,13 @@ import {
 import { manualOverrideDecision, routeRequest } from '@axplane/router';
 import { readWorkerHealth } from '@axplane/runtime-dev';
 import { runAxAgent } from '@axplane/ax-adapter';
-import { DEMO_EVAL_SUITE, executeEvalRun } from '@axplane/eval';
+import { DEMO_EVAL_SUITE, executeEvalRun, type EvalRunSummary } from '@axplane/eval';
+import {
+  buildEvalComparison,
+  executeOptimizationWorkflow,
+  metricsFromEvalRun,
+  type LabRepository,
+} from '@axplane/lab';
 import { DEMO_GRAPH_WORKFLOW, GRAPH_DEMO_AGENTS } from '@axplane/graph';
 import type { HostToolDefinition } from '@axplane/host-tools';
 
@@ -133,6 +139,7 @@ const EvalCriterionSchema = z.discriminatedUnion('type', [
 const CreateEvalSuiteSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(''),
+  agentId: z.string().min(1).optional(),
   cases: z.array(z.object({
     name: z.string().min(1),
     taskText: z.string().min(1),
@@ -147,6 +154,61 @@ const CreateEvalRunSchema = z.object({
   agentVersionId: z.string().uuid().optional(),
   mode: z.enum(['mock', 'real']).default('mock'),
 });
+
+const OptimizeAgentSchema = z.object({
+  suiteId: z.string().uuid(),
+  mode: z.enum(['mock', 'real']).default('mock'),
+  optimizerType: z.enum(['ax-native-mock', 'ax-native']).default('ax-native-mock'),
+});
+
+async function loadAgentConfig(agentId: string) {
+  const version = await repo.getCurrentAgentVersion(agentId);
+  if (!version?.configJson) throw new Error(`No agent version for ${agentId}`);
+  return parseAgentConfigJson(version.configJson);
+}
+
+async function comparisonFromEvalRuns(baselineEvalRunId: string, candidateEvalRunId: string) {
+  const baselineRun = await repo.getEvalRun(baselineEvalRunId);
+  const candidateRun = await repo.getEvalRun(candidateEvalRunId);
+  if (!baselineRun?.summaryJson || !candidateRun?.summaryJson) {
+    throw new Error('Both eval runs must be completed with summaries');
+  }
+
+  const baselineSnapshots = await Promise.all(
+    (baselineRun.results ?? []).map(async (result) => {
+      if (!result.runId) return { runId: null, events: [], toolCalls: [], usageRows: [] };
+      return {
+        runId: result.runId,
+        events: await repo.listRunEvents(result.runId),
+        toolCalls: await repo.listToolCallsForRun(result.runId),
+        usageRows: await repo.listModelUsageForRun(result.runId),
+      };
+    }),
+  );
+  const candidateSnapshots = await Promise.all(
+    (candidateRun.results ?? []).map(async (result) => {
+      if (!result.runId) return { runId: null, events: [], toolCalls: [], usageRows: [] };
+      return {
+        runId: result.runId,
+        events: await repo.listRunEvents(result.runId),
+        toolCalls: await repo.listToolCallsForRun(result.runId),
+        usageRows: await repo.listModelUsageForRun(result.runId),
+      };
+    }),
+  );
+
+  const baseline = metricsFromEvalRun(
+    baselineEvalRunId,
+    baselineRun.summaryJson as EvalRunSummary,
+    baselineSnapshots,
+  );
+  const candidate = metricsFromEvalRun(
+    candidateEvalRunId,
+    candidateRun.summaryJson as EvalRunSummary,
+    candidateSnapshots,
+  );
+  return buildEvalComparison(baseline, candidate);
+}
 
 app.get('/memory', async (c) => {
   const agentId = c.req.query('agentId');
@@ -374,6 +436,150 @@ app.post('/agents/:id/duplicate', async (c) => {
     }
     throw error;
   }
+});
+
+app.get('/agents/:id/lab/suites', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+  return c.json(await repo.listEvalSuites(agentId));
+});
+
+app.post('/agents/:id/lab/suites/seed-demo', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+
+  const suites = await repo.listEvalSuites(agentId);
+  const demoName = `${DEMO_EVAL_SUITE.name} (${agentId})`;
+  const found = suites.find((suite) => suite.name === demoName);
+  if (found) return c.json(found);
+
+  const suite = await repo.createEvalSuite({
+    name: demoName,
+    description: DEMO_EVAL_SUITE.description,
+    agentId,
+    cases: DEMO_EVAL_SUITE.cases.map((row) => ({
+      name: row.name,
+      taskText: row.taskText,
+      criteria: row.criteria,
+      sortOrder: row.sortOrder,
+    })),
+  });
+  return c.json(suite, 201);
+});
+
+app.post('/agents/:id/lab/baseline-eval', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+  const payload = CreateEvalRunSchema.parse({ ...(await c.req.json()), agentId });
+
+  const result = await executeEvalRun({
+    repo,
+    suiteId: payload.suiteId,
+    agentId,
+    agentVersionId: payload.agentVersionId,
+    runLabel: 'baseline',
+    mode: payload.mode,
+    runAgent: runAxAgent,
+    parseAgentConfig: parseAgentConfigJson,
+  });
+  const evalRun = await repo.getEvalRun(result.evalRunId);
+  return c.json({ ...result, evalRun }, 201);
+});
+
+app.post('/agents/:id/lab/optimize', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+  const payload = OptimizeAgentSchema.parse(await c.req.json());
+
+  try {
+    const result = await executeOptimizationWorkflow({
+      repo: repo as LabRepository,
+      agentId,
+      suiteId: payload.suiteId,
+      optimizerType: payload.optimizerType,
+      mode: payload.mode,
+      runAgent: runAxAgent,
+      parseAgentConfig: parseAgentConfigJson,
+      loadAgentConfig,
+    });
+    const optimizationRun = await repo.getOptimizationRun(result.optimizationRunId);
+    const candidate = await repo.getAgentCandidate(result.candidateId);
+    return c.json({ ...result, optimizationRun, candidate }, 201);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Real Ax optimization')) {
+      return c.json({ error: error.message }, 501);
+    }
+    throw error;
+  }
+});
+
+app.get('/agents/:id/lab/optimization-runs', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+  return c.json(await repo.listOptimizationRuns(agentId));
+});
+
+app.get('/agents/:id/lab/candidates', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+  return c.json(await repo.listAgentCandidates(agentId));
+});
+
+app.get('/agents/:id/lab/comparison', async (c) => {
+  const agentId = c.req.param('id');
+  const agent = await repo.getAgent(agentId);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+  const baselineEvalRunId = c.req.query('baselineEvalRunId');
+  const candidateEvalRunId = c.req.query('candidateEvalRunId');
+  if (!baselineEvalRunId || !candidateEvalRunId) {
+    return c.json({ error: 'baselineEvalRunId and candidateEvalRunId are required' }, 400);
+  }
+  try {
+    return c.json(await comparisonFromEvalRuns(baselineEvalRunId, candidateEvalRunId));
+  } catch (error) {
+    if (error instanceof Error) return c.json({ error: error.message }, 400);
+    throw error;
+  }
+});
+
+app.post('/agents/:id/lab/candidates/:candidateId/promote', async (c) => {
+  const agentId = c.req.param('id');
+  const candidateId = c.req.param('candidateId');
+  const candidate = await repo.getAgentCandidate(candidateId);
+  if (!candidate || candidate.agentId !== agentId) return c.json({ error: 'Not found' }, 404);
+  if (candidate.status === 'promoted') return c.json({ error: 'Candidate already promoted' }, 409);
+  if (candidate.status === 'rejected') return c.json({ error: 'Rejected candidates cannot be promoted' }, 409);
+
+  const configJson = parseAgentConfigJson(candidate.artifactJson);
+  const version = await repo.saveAgentVersion(agentId, {
+    signature: configJson.signature,
+    configJson,
+  });
+
+  const promoted = await repo.updateAgentCandidate(candidateId, {
+    status: 'promoted',
+    promotedVersionId: version.id,
+    promotedAt: new Date(),
+  });
+
+  return c.json({ candidate: promoted, version });
+});
+
+app.post('/agents/:id/lab/candidates/:candidateId/reject', async (c) => {
+  const agentId = c.req.param('id');
+  const candidateId = c.req.param('candidateId');
+  const candidate = await repo.getAgentCandidate(candidateId);
+  if (!candidate || candidate.agentId !== agentId) return c.json({ error: 'Not found' }, 404);
+  if (candidate.status === 'promoted') return c.json({ error: 'Promoted candidates cannot be rejected' }, 409);
+
+  const rejected = await repo.updateAgentCandidate(candidateId, { status: 'rejected' });
+  return c.json({ candidate: rejected });
 });
 
 app.get('/requests', async (c) => c.json(await repo.listRequests()));

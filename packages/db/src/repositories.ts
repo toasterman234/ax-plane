@@ -6,7 +6,7 @@ import type { MemoryEntry } from '@axplane/memory';
 import { rankMemoryEntries } from '@axplane/memory';
 import type { Database } from './client';
 import { hostDefinitionFromCustomToolRow, httpQualifiedName, type CustomHttpToolInput } from '@axplane/host-tools';
-import { agents, agentVersions, approvals, customTools, evalCaseResults, evalCases, evalRuns, evalSuites, graphWorkflows, memoryEntries, requests, runEvents, runs, toolCalls } from './schema';
+import { agents, agentCandidates, agentVersions, approvals, customTools, evalCaseResults, evalCases, evalRuns, evalSuites, graphWorkflows, memoryEntries, modelUsage, optimizationRuns, requests, runEvents, runs, toolCalls } from './schema';
 
 function memoryEntryFromRow(row: typeof memoryEntries.$inferSelect): MemoryEntry {
   return {
@@ -359,6 +359,10 @@ export function createRepositories(db: Database) {
       return toolCall;
     },
 
+    async listModelUsageForRun(runId: string) {
+      return db.select().from(modelUsage).where(eq(modelUsage.runId, runId));
+    },
+
     async listToolCallsForRun(runId: string) {
       return db.select().from(toolCalls).where(eq(toolCalls.runId, runId)).orderBy(asc(toolCalls.createdAt));
     },
@@ -600,8 +604,14 @@ export function createRepositories(db: Database) {
       return entries.slice(0, limit);
     },
 
-    async listEvalSuites() {
-      const suites = await db.select().from(evalSuites).orderBy(asc(evalSuites.name));
+    async listEvalSuites(agentId?: string) {
+      const suites = agentId
+        ? await db
+          .select()
+          .from(evalSuites)
+          .where(or(eq(evalSuites.agentId, agentId), isNull(evalSuites.agentId)))
+          .orderBy(asc(evalSuites.name))
+        : await db.select().from(evalSuites).orderBy(asc(evalSuites.name));
       const cases = await db.select().from(evalCases).orderBy(asc(evalCases.sortOrder));
       const casesBySuite = new Map<string, typeof cases>();
       for (const row of cases) {
@@ -644,11 +654,16 @@ export function createRepositories(db: Database) {
     async createEvalSuite(input: {
       name: string;
       description?: string;
+      agentId?: string | null;
       cases: Array<{ name: string; taskText: string; criteria: unknown[]; sortOrder?: number }>;
     }) {
       const [suite] = await db
         .insert(evalSuites)
-        .values({ name: input.name, description: input.description ?? '' })
+        .values({
+          name: input.name,
+          description: input.description ?? '',
+          agentId: input.agentId ?? null,
+        })
         .returning();
       if (input.cases.length > 0) {
         await db.insert(evalCases).values(
@@ -668,6 +683,8 @@ export function createRepositories(db: Database) {
       suiteId: string;
       agentId: string;
       agentVersionId?: string | null;
+      candidateId?: string | null;
+      runLabel?: string | null;
       mode: 'mock' | 'real';
     }) {
       const [row] = await db
@@ -676,6 +693,8 @@ export function createRepositories(db: Database) {
           suiteId: input.suiteId,
           agentId: input.agentId,
           agentVersionId: input.agentVersionId ?? null,
+          candidateId: input.candidateId ?? null,
+          runLabel: input.runLabel ?? null,
           mode: input.mode,
           status: 'running',
         })
@@ -859,6 +878,131 @@ export function createRepositories(db: Database) {
         agentId: input.agentId,
       });
       return run!;
+    },
+
+    async createOptimizationRun(input: {
+      agentId: string;
+      suiteId: string;
+      optimizerType: string;
+      optimizerConfig?: Record<string, unknown>;
+    }) {
+      const [row] = await db
+        .insert(optimizationRuns)
+        .values({
+          agentId: input.agentId,
+          suiteId: input.suiteId,
+          optimizerType: input.optimizerType,
+          optimizerConfig: input.optimizerConfig ?? {},
+          status: 'running',
+        })
+        .returning();
+      return row!;
+    },
+
+    async updateOptimizationRun(
+      optimizationRunId: string,
+      patch: {
+        status?: string;
+        baselineEvalRunId?: string | null;
+        candidateEvalRunId?: string | null;
+        candidateId?: string | null;
+        error?: string | null;
+        completedAt?: Date;
+      },
+    ) {
+      const values: Record<string, unknown> = {};
+      if (patch.status !== undefined) values.status = patch.status;
+      if (patch.baselineEvalRunId !== undefined) values.baselineEvalRunId = patch.baselineEvalRunId;
+      if (patch.candidateEvalRunId !== undefined) values.candidateEvalRunId = patch.candidateEvalRunId;
+      if (patch.candidateId !== undefined) values.candidateId = patch.candidateId;
+      if (patch.error !== undefined) values.error = patch.error;
+      if (patch.completedAt !== undefined) values.completedAt = patch.completedAt;
+      const [row] = await db
+        .update(optimizationRuns)
+        .set(values)
+        .where(eq(optimizationRuns.id, optimizationRunId))
+        .returning();
+      return row;
+    },
+
+    async getOptimizationRun(id: string) {
+      const [row] = await db.select().from(optimizationRuns).where(eq(optimizationRuns.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async listOptimizationRuns(agentId: string) {
+      return db
+        .select()
+        .from(optimizationRuns)
+        .where(eq(optimizationRuns.agentId, agentId))
+        .orderBy(desc(optimizationRuns.createdAt));
+    },
+
+    async createAgentCandidate(input: {
+      agentId: string;
+      sourceOptimizationRunId?: string | null;
+      name: string;
+      status?: string;
+      artifactJson: unknown;
+      artifactText?: string | null;
+      baselineScore?: number | null;
+      candidateScore?: number | null;
+      metricsJson?: Record<string, unknown>;
+    }) {
+      const [row] = await db
+        .insert(agentCandidates)
+        .values({
+          agentId: input.agentId,
+          sourceOptimizationRunId: input.sourceOptimizationRunId ?? null,
+          name: input.name,
+          status: input.status ?? 'draft',
+          artifactJson: input.artifactJson,
+          artifactText: input.artifactText ?? null,
+          baselineScore: input.baselineScore ?? null,
+          candidateScore: input.candidateScore ?? null,
+          metricsJson: input.metricsJson ?? {},
+        })
+        .returning();
+      return row!;
+    },
+
+    async updateAgentCandidate(
+      candidateId: string,
+      patch: {
+        status?: string;
+        baselineScore?: number | null;
+        candidateScore?: number | null;
+        metricsJson?: Record<string, unknown>;
+        promotedVersionId?: string | null;
+        promotedAt?: Date | null;
+      },
+    ) {
+      const values: Record<string, unknown> = {};
+      if (patch.status !== undefined) values.status = patch.status;
+      if (patch.baselineScore !== undefined) values.baselineScore = patch.baselineScore;
+      if (patch.candidateScore !== undefined) values.candidateScore = patch.candidateScore;
+      if (patch.metricsJson !== undefined) values.metricsJson = patch.metricsJson;
+      if (patch.promotedVersionId !== undefined) values.promotedVersionId = patch.promotedVersionId;
+      if (patch.promotedAt !== undefined) values.promotedAt = patch.promotedAt;
+      const [row] = await db
+        .update(agentCandidates)
+        .set(values)
+        .where(eq(agentCandidates.id, candidateId))
+        .returning();
+      return row;
+    },
+
+    async getAgentCandidate(id: string) {
+      const [row] = await db.select().from(agentCandidates).where(eq(agentCandidates.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async listAgentCandidates(agentId: string) {
+      return db
+        .select()
+        .from(agentCandidates)
+        .where(eq(agentCandidates.agentId, agentId))
+        .orderBy(desc(agentCandidates.createdAt));
     },
   };
 }

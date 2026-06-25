@@ -50,6 +50,9 @@ importers:
       '@axplane/host-tools':
         specifier: workspace:*
         version: link:../../packages/host-tools
+      '@axplane/lab':
+        specifier: workspace:*
+        version: link:../../packages/lab
       '@axplane/router':
         specifier: workspace:*
         version: link:../../packages/router
@@ -293,6 +296,22 @@ importers:
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
+  packages/lab:
+    dependencies:
+      '@axplane/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@axplane/eval':
+        specifier: workspace:*
+        version: link:../eval
+    devDependencies:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

@@ -17,6 +17,7 @@
     "@axplane/ax-adapter": "workspace:*",
     "@axplane/eval": "workspace:*",
     "@axplane/graph": "workspace:*",
+    "@axplane/lab": "workspace:*",
     "@axplane/router": "workspace:*",
     "@axplane/runtime-dev": "workspace:*",
     "@hono/node-server": "^1.13.8",

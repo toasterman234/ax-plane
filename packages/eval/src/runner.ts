@@ -19,6 +19,8 @@ export type EvalRepository = {
     suiteId: string;
     agentId: string;
     agentVersionId?: string | null;
+    candidateId?: string | null;
+    runLabel?: string | null;
     mode: 'mock' | 'real';
   }): Promise<{ id: string }>;
   updateEvalRun(
@@ -66,6 +68,9 @@ export type ExecuteEvalRunArgs = {
   suiteId: string;
   agentId: string;
   agentVersionId?: string;
+  configOverride?: AgentConfig;
+  candidateId?: string;
+  runLabel?: 'baseline' | 'candidate';
   mode?: 'mock' | 'real';
   runAgent: RunAgentFn;
   parseAgentConfig: (json: unknown) => AgentConfig;
@@ -76,16 +81,26 @@ export async function executeEvalRun(args: ExecuteEvalRunArgs) {
   const suite = await args.repo.getEvalSuite(args.suiteId);
   if (!suite) throw new Error(`Eval suite not found: ${args.suiteId}`);
 
-  const version = args.agentVersionId
-    ? await args.repo.getAgentVersion(args.agentVersionId)
-    : await args.repo.getCurrentAgentVersion(args.agentId);
-  if (!version?.configJson) throw new Error(`No agent version for ${args.agentId}`);
-  const agentConfig = args.parseAgentConfig(version.configJson);
+  let agentConfig: AgentConfig;
+  let versionId: string | null = null;
+
+  if (args.configOverride) {
+    agentConfig = args.configOverride;
+  } else {
+    const version = args.agentVersionId
+      ? await args.repo.getAgentVersion(args.agentVersionId)
+      : await args.repo.getCurrentAgentVersion(args.agentId);
+    if (!version?.configJson) throw new Error(`No agent version for ${args.agentId}`);
+    versionId = version.id;
+    agentConfig = args.parseAgentConfig(version.configJson);
+  }
 
   const evalRun = await args.repo.createEvalRun({
     suiteId: suite.id,
     agentId: args.agentId,
-    agentVersionId: version.id,
+    agentVersionId: versionId,
+    candidateId: args.candidateId ?? null,
+    runLabel: args.runLabel ?? null,
     mode,
   });
 
@@ -107,7 +122,7 @@ export async function executeEvalRun(args: ExecuteEvalRunArgs) {
       const run = await args.repo.createRun({
         requestId: request.id,
         agentId: args.agentId,
-        agentVersionId: version.id,
+        agentVersionId: versionId,
         inputJson: { taskText: evalCase.taskText, evalRunId: evalRun.id, evalCaseId: evalCase.id },
       });
       runId = run.id;
