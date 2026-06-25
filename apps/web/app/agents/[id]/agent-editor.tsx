@@ -17,7 +17,7 @@ export type AgentConfig = {
   id: string;
   name: string;
   description: string;
-  runtime: 'ax';
+  runtime: 'ax' | 'pi';
   mode: 'normal' | 'rlm';
   signature: string;
   contextFields: string[];
@@ -335,7 +335,15 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                 </label>
                 <label className="block space-y-1">
                   <span className="text-xs uppercase tracking-wide text-slate-500">Runtime</span>
-                  <input className="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-400" value="ax" disabled readOnly />
+                  <select
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                    value={form.runtime}
+                    disabled={isReadOnlyPreview}
+                    onChange={(e) => updateDraft({ runtime: e.target.value as AgentConfig['runtime'] })}
+                  >
+                    <option value="ax">ax (@ax-llm/ax)</option>
+                    <option value="pi">pi (not wired)</option>
+                  </select>
                 </label>
               </div>
             </div>

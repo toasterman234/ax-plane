@@ -20,7 +20,7 @@ import {
 } from '@axplane/agents';
 import { manualOverrideDecision, routeRequest } from '@axplane/router';
 import { readWorkerHealth } from '@axplane/runtime-dev';
-import { runAxAgent } from '@axplane/ax-adapter';
+import { runAgentForConfig } from '@axplane/runtime';
 import { DEMO_EVAL_SUITE, executeEvalRun, type EvalRunSummary } from '@axplane/eval';
 import {
   buildEvalComparison,
@@ -288,7 +288,7 @@ app.post('/eval/runs', async (c) => {
     agentId: payload.agentId,
     agentVersionId: payload.agentVersionId,
     mode: payload.mode,
-    runAgent: runAxAgent,
+    runAgent: runAgentForConfig,
     parseAgentConfig: parseAgentConfigJson,
   });
   const evalRun = await repo.getEvalRun(result.evalRunId);
@@ -482,7 +482,7 @@ app.post('/agents/:id/lab/baseline-eval', async (c) => {
     agentVersionId: payload.agentVersionId,
     runLabel: 'baseline',
     mode: payload.mode,
-    runAgent: runAxAgent,
+    runAgent: runAgentForConfig,
     parseAgentConfig: parseAgentConfigJson,
   });
   const evalRun = await repo.getEvalRun(result.evalRunId);
@@ -502,7 +502,7 @@ app.post('/agents/:id/lab/optimize', async (c) => {
       suiteId: payload.suiteId,
       optimizerType: payload.optimizerType,
       mode: payload.mode,
-      runAgent: runAxAgent,
+      runAgent: runAgentForConfig,
       parseAgentConfig: parseAgentConfigJson,
       loadAgentConfig,
     });

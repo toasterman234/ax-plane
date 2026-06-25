@@ -3,7 +3,7 @@
 **Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
 **Last updated:** 2026-06-25  
-**Last commit:** `6d0ca04` (Steps B–H) — **large uncommitted diff** on disk (Step I + I-lite below)
+**Last commit:** `233c851` — Agent Lab + runtime adapter layer
 
 ---
 
@@ -17,7 +17,7 @@
 **Architectural rule:** The UI never calls Ax. Flow is:
 
 ```txt
-web → API → worker → @axplane/ax-adapter → guardedHostTool → Postgres events → SSE → dashboard
+web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedHostTool → Postgres events → SSE → dashboard
 ```
 
 **Graph rule (DECISIONS 0007):** Multi-agent workflows are **control-plane child runs** with handoffs — not in-process ax `agent()` child loops.
@@ -39,7 +39,7 @@ web → API → worker → @axplane/ax-adapter → guardedHostTool → Postgres 
 | **G** | Agent config editor + version history | ✅ |
 | **H** | Request router (keyword / default / explicit) | ✅ |
 
-### Step I-lite (uncommitted)
+### Step I-lite
 
 | Slice | Deliverable | Status |
 |-------|-------------|--------|
@@ -47,27 +47,39 @@ web → API → worker → @axplane/ax-adapter → guardedHostTool → Postgres 
 | **I-lite-b** | Per-agent `models.primary` / `fallback`, Models card in editor | ✅ |
 | **I-lite-c** | `custom_tools` table, HTTP tools (`http.{name}`), `/tools` page | ✅ |
 
-### Step I proper (uncommitted)
+### Step I proper
 
 | Slice | Deliverable | Status |
 |-------|-------------|--------|
-| **Memory kernel** | `memory_entries` table, `memory.save` / `search` / `list`, auto-inject at run start (`memory.injected`), `/memory` UI, agent `memory.kernelInject` + `memory.injectLimit` | ✅ |
-| **Eval lab** | `eval_suites` / `eval_cases` / `eval_runs`, deterministic scoring, `POST /eval/runs` (sync via `runAxAgent`), `/eval` UI, demo suite seed | ✅ |
-| **Graph workflows** | `graph_workflows` table, parent/child runs, `executeGraphRun`, approval pause/resume, `graph.*` events, `/workflows` UI, run detail **Graph steps** | ✅ |
+| **Memory kernel** | `memory_entries` table, `memory.save` / `search` / `list`, auto-inject at run start (`memory.injected`), `/memory` UI | ✅ |
+| **Eval lab** | `eval_suites` / `eval_cases` / `eval_runs`, deterministic scoring, `/eval` UI | ✅ |
+| **Graph workflows** | `graph_workflows`, parent/child runs, `executeGraphRun`, `/workflows` UI | ✅ |
+
+### Agent Lab
+
+| Slice | Deliverable | Status |
+|-------|-------------|--------|
+| **Mock optimize loop** | `optimization_runs`, `agent_candidates`, Agent Lab tab, promote → `agent_versions` | ✅ |
+| **Real `agent.optimize()`** | `ax-native` optimizer type | ❌ (501 until wired) |
+
+### Runtime layer
+
+| Slice | Deliverable | Status |
+|-------|-------------|--------|
+| **`@axplane/runtime`** | `RuntimeAdapter`, `runAgentForConfig`, Ax impl, worker/API wired | ✅ |
+| **Governed `pi` runtime** | `piRuntimeAdapter` | ❌ (fails loud) |
 
 ### Step I — not built yet
 
 - Scheduling (cron / delayed runs)
-- Multi-runtime adapters (thin `RuntimeAdapter`; Ax-only impl first, then governed `pi`)
 - LLM-based request routing (today: keyword + default + explicit only)
 
 ### Test / build status (last run)
 
 ```bash
-pnpm db:migrate   # through 0004_graph_workflows.sql
+pnpm db:migrate   # through 0005_agent_lab.sql
 pnpm typecheck    # green
-pnpm test         # ~44 tests, green
-pnpm build        # green (do NOT run while next dev is up — see gotchas)
+pnpm test         # ~50 tests, green
 ```
 
 Real-mode smoke:
@@ -154,6 +166,8 @@ packages/agents   YAML config, tool descriptors, routing, models, templates
 packages/router   Request classification (keyword / default / explicit)
 packages/runtime-dev   Dev worker lock + heartbeat for health checks
 packages/ax-adapter   mock + real Ax runner, guardedHostTool, resume, memory inject
+packages/runtime    RuntimeAdapter facade (ax wired, pi stub)
+packages/lab        Agent Lab mock optimizer + comparison workflow
 packages/memory   Scoring, kernel inject, memory.* tool execution
 packages/eval     Deterministic eval scoring + suite runner
 packages/graph    Workflow defs, template resolution, executeGraphRun
@@ -168,6 +182,7 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 | `0002_memory_entries.sql` | `memory_entries` |
 | `0003_eval_lab.sql` | Eval tables |
 | `0004_graph_workflows.sql` | `graph_workflows`, `runs.parent_run_id`, `step_key`, `run_kind` |
+| `0005_agent_lab.sql` | `optimization_runs`, `agent_candidates`, `eval_suites.agent_id` |
 
 ---
 
@@ -412,8 +427,8 @@ You inherit a **working MVP control plane** through **Step I** (memory, eval, gr
 
 **Suggested next work (pick one):**
 
-1. **Commit** Step I + I-lite to `ax-lab`
-2. **Multi-runtime adapters** — `RuntimeAdapter` interface, Ax impl only; wire worker through it
+1. **Real Ax optimization** — wire `agent.optimize()` for `ax-native` in Agent Lab
+2. **Governed pi runtime** — implement `piRuntimeAdapter` against `~/Projects/pi`
 3. **Scheduling** — delayed/cron run enqueue
 4. **LLM routing** — replace keyword-only router with optional model-based classification
 

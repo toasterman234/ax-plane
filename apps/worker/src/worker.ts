@@ -1,7 +1,7 @@
 import { getDemoAgentConfig, parseAgentConfigJson } from '@axplane/agents';
 import { makeDatabase, createRepositories } from '@axplane/db';
-import { runAxAgent } from '@axplane/ax-adapter';
 import { executeGraphRun, isGraphRun, resumeGraphRunAfterApproval } from '@axplane/graph';
+import { runAgentForConfig } from '@axplane/runtime';
 import {
   WorkerAlreadyRunningError,
   acquireWorkerLock,
@@ -62,7 +62,7 @@ async function maybeResumeParentGraph(childRun: Awaited<ReturnType<typeof repo.g
     repo,
     parentRunId: parent.id,
     mode: executionModeTyped,
-    runAgent: runAxAgent,
+    runAgent: runAgentForConfig,
     parseAgentConfig: parseAgentConfigJson,
   });
 }
@@ -76,7 +76,7 @@ async function processRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[n
       repo,
       parentRunId: claimed.id,
       mode: executionModeTyped,
-      runAgent: runAxAgent,
+      runAgent: runAgentForConfig,
       parseAgentConfig: parseAgentConfigJson,
     });
     return;
@@ -85,7 +85,7 @@ async function processRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[n
   const config = await loadAgentConfigForRun(claimed);
   const input = (claimed.inputJson ?? {}) as { taskText?: string; request?: string };
   const taskText = input.taskText ?? input.request ?? 'No request body provided.';
-  await runAxAgent({
+  await runAgentForConfig({
     runId: claimed.id,
     agentConfig: config,
     input: { taskText },

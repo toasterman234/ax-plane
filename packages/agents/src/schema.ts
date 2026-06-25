@@ -4,11 +4,14 @@ import { AgentModelsSchema } from './models';
 export { AgentModelConfigSchema, AgentModelsSchema, normalizeAgentModels, hasAgentModelOverride } from './models';
 export type { AgentModelConfig, AgentModels, NormalizedAgentModels } from './models';
 
+export const AgentRuntimeSchema = z.enum(['ax', 'pi']);
+export type AgentRuntime = z.infer<typeof AgentRuntimeSchema>;
+
 export const AgentConfigSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string().default(''),
-  runtime: z.literal('ax').default('ax'),
+  runtime: AgentRuntimeSchema.default('ax'),
   mode: z.enum(['normal', 'rlm']).default('rlm'),
   signature: z.string().min(1),
   contextFields: z.array(z.string()).default([]),
