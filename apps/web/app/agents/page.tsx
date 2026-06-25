@@ -114,11 +114,11 @@ export default function AgentsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Agents</h1>
-          <p className="text-slate-400">Create, duplicate, and configure Ax agents.</p>
+          <p className="text-muted-foreground">Create, duplicate, and configure Ax agents.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            className="bg-slate-800 text-white hover:bg-slate-700"
+            className="bg-secondary text-secondary-foreground hover:opacity-90"
             onClick={() => { setShowCreate((v) => !v); setError(null); setMessage(null); }}
           >
             {showCreate ? 'Cancel' : 'New agent'}
@@ -135,36 +135,36 @@ export default function AgentsPage() {
           <h2 className="text-lg font-semibold">Create agent</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1">
-              <span className="text-xs uppercase tracking-wide text-slate-500">Agent id</span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Agent id</span>
               <input
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm"
+                className="w-full rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
                 placeholder="research_agent"
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-xs uppercase tracking-wide text-slate-500">Name</span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Name</span>
               <input
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
               />
             </label>
           </div>
           <label className="block space-y-1">
-            <span className="text-xs uppercase tracking-wide text-slate-500">Description</span>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Description</span>
             <textarea
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
               rows={2}
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-xs uppercase tracking-wide text-slate-500">Template</span>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Template</span>
             <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
               value={newTemplate}
               onChange={(e) => setNewTemplate(e.target.value as CreateTemplate)}
             >
@@ -172,7 +172,7 @@ export default function AgentsPage() {
               <option value="full">Full catalog — all host tools (not default router)</option>
             </select>
           </label>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             New agents are not the default router target. Add routing keywords in the editor after create.
           </p>
           <Button onClick={createAgent} disabled={creating || !newName.trim()}>
@@ -181,7 +181,7 @@ export default function AgentsPage() {
         </Card>
       ) : null}
 
-      {query.isLoading ? <p className="text-sm text-slate-500">Loading agents…</p> : null}
+      {query.isLoading ? <p className="text-sm text-muted-foreground">Loading agents…</p> : null}
       {query.isError ? (
         <p className="text-sm text-red-400">
           Could not load agents. Check that the API is running at {process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8797'}.
@@ -189,7 +189,7 @@ export default function AgentsPage() {
       ) : null}
       {!query.isLoading && !query.isError && (query.data?.length ?? 0) === 0 ? (
         <Card>
-          <p className="text-slate-300">
+          <p className="text-foreground">
             No agents yet. Click <strong>New agent</strong> or <strong>Install default agent</strong> to get started.
           </p>
         </Card>
@@ -198,19 +198,19 @@ export default function AgentsPage() {
         <Card key={agent.id}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <Link href={`/agents/${agent.id}`} className="text-lg font-semibold hover:text-white">
+              <Link href={`/agents/${agent.id}`} className="text-lg font-semibold hover:text-accent-foreground">
                 {agent.name}
               </Link>
-              <div className="text-sm text-slate-500">{agent.id}</div>
-              <p className="mt-2 text-slate-300">{agent.description}</p>
+              <div className="text-sm text-muted-foreground">{agent.id}</div>
+              <p className="mt-2 text-foreground">{agent.description}</p>
               {!agent.enabled ? <p className="mt-2 text-xs text-amber-400">Disabled</p> : null}
             </div>
             <div className="flex shrink-0 flex-col gap-2">
-              <Link href={`/agents/${agent.id}`} className="text-sm text-slate-400 hover:text-white text-right">
+              <Link href={`/agents/${agent.id}`} className="text-sm text-muted-foreground hover:text-accent-foreground text-right">
                 Edit config →
               </Link>
               <Button
-                className="bg-slate-800 text-white hover:bg-slate-700"
+                className="bg-secondary text-secondary-foreground hover:opacity-90"
                 disabled={duplicatingId === agent.id}
                 onClick={() => duplicateAgent(agent)}
               >

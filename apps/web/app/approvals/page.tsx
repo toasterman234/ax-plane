@@ -6,9 +6,9 @@ export default function ApprovalsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Approvals</h1>
-        <p className="text-slate-400">Human gates for approval-required tool calls.</p>
+        <p className="text-muted-foreground">Human gates for approval-required tool calls.</p>
       </div>
-      <Suspense fallback={<p className="text-sm text-slate-500">Loading approvals…</p>}>
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading approvals…</p>}>
         <ApprovalsContent />
       </Suspense>
     </div>

@@ -96,24 +96,24 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Requests</h1>
-        <p className="text-slate-400">Submit work — the router picks an agent via keywords, optional LLM routing, or defaults.</p>
+        <p className="text-muted-foreground">Submit work — the router picks an agent via keywords, optional LLM routing, or defaults.</p>
       </div>
 
       <Card className="space-y-4">
         <textarea
-          className="min-h-28 w-full rounded-md border border-slate-800 bg-slate-950 p-3 text-sm"
+          className="min-h-28 w-full rounded-md border border-border bg-card p-3 text-sm"
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />
         <div className="flex flex-wrap items-center gap-4 text-sm">
-          <label className="flex items-center gap-2 text-slate-300">
+          <label className="flex items-center gap-2 text-foreground">
             <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
             Start run immediately
           </label>
-          <label className="flex items-center gap-2 text-slate-300">
-            <span className="text-slate-500">Force agent</span>
+          <label className="flex items-center gap-2 text-foreground">
+            <span className="text-muted-foreground">Force agent</span>
             <select
-              className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1"
+              className="rounded-md border border-border bg-muted px-2 py-1"
               value={explicitAgentId}
               onChange={(e) => setExplicitAgentId(e.target.value)}
             >
@@ -129,7 +129,7 @@ export default function RequestsPage() {
         </Button>
         {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Tip: try &quot;Read README.md from the repo&quot; vs &quot;test approval with fake risky tool&quot; — routing keywords on each agent config drive the pick.
         </p>
       </Card>
@@ -139,7 +139,7 @@ export default function RequestsPage() {
           <p className="text-sm text-red-400">Could not load requests from {API_URL}</p>
         ) : null}
         {!requests.isLoading && !requests.isError && (requests.data?.length ?? 0) === 0 ? (
-          <p className="text-sm text-slate-500">No requests yet. Submit one above, then click <strong>Start run</strong>.</p>
+          <p className="text-sm text-muted-foreground">No requests yet. Submit one above, then click <strong>Start run</strong>.</p>
         ) : null}
         {requests.data?.map((request) => {
           const route = request.routeDecisionJson;
@@ -147,31 +147,31 @@ export default function RequestsPage() {
             <Card key={request.id}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm text-slate-500">{request.id}</div>
+                  <div className="text-sm text-muted-foreground">{request.id}</div>
                   <p className="mt-2">{request.body}</p>
                   {route ? (
-                    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-sm">
+                    <div className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-slate-500">Routed to</span>
+                        <span className="text-muted-foreground">Routed to</span>
                         <Link href={`/agents/${route.selectedAgentId}`} className="font-mono text-emerald-300 hover:underline">
                           {route.selectedAgentId}
                         </Link>
-                        <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
                           {strategyLabel(route.strategy)}
                         </span>
                         {route.confidence !== undefined ? (
-                          <span className="text-xs text-slate-500">{Math.round(route.confidence * 100)}% confidence</span>
+                          <span className="text-xs text-muted-foreground">{Math.round(route.confidence * 100)}% confidence</span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-slate-400">{route.reason}</p>
+                      <p className="mt-1 text-muted-foreground">{route.reason}</p>
                     </div>
                   ) : (
-                    <p className="mt-2 text-xs text-slate-500">agent: {request.agentId}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">agent: {request.agentId}</p>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
                   <select
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+                    className="rounded-md border border-border bg-muted px-2 py-1 text-sm"
                     value={overrideByRequest[request.id] ?? request.agentId}
                     onChange={(e) => setOverrideByRequest((prev) => ({ ...prev, [request.id]: e.target.value }))}
                   >
@@ -181,7 +181,7 @@ export default function RequestsPage() {
                   </select>
                   <div className="flex gap-2">
                     <Button
-                      className="bg-slate-800 text-white hover:bg-slate-700"
+                      className="bg-secondary text-secondary-foreground hover:opacity-90"
                       onClick={() => reroute.mutate({
                         requestId: request.id,
                         agentId: overrideByRequest[request.id],

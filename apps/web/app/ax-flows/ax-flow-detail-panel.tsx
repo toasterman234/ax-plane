@@ -127,17 +127,17 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-slate-800 px-4 py-3">
+        <div className="border-b border-border px-4 py-3">
           <h2 className="text-lg font-semibold">{flow.title}</h2>
-          <p className="font-mono text-xs text-slate-500">{flow.id}</p>
-          {flow.summary ? <p className="mt-2 text-sm text-slate-400">{flow.summary}</p> : null}
+          <p className="font-mono text-xs text-muted-foreground">{flow.id}</p>
+          {flow.summary ? <p className="mt-2 text-sm text-muted-foreground">{flow.summary}</p> : null}
         </div>
-        <div className="h-[460px] bg-slate-950">
+        <div className="h-[460px] bg-card">
           <FlowCanvas spec={flow.spec} overlay={overlay} details={details} />
         </div>
         {liveOutput ? (
-          <div className="border-t border-slate-800 px-4 py-3 text-sm text-slate-300">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Output</p>
+          <div className="border-t border-border px-4 py-3 text-sm text-foreground">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Output</p>
             <p className="mt-1 whitespace-pre-wrap">{liveOutput}</p>
           </div>
         ) : null}
@@ -146,7 +146,7 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
       <Card className="space-y-3 p-4">
         <h3 className="font-semibold">Run this flow</h3>
         <textarea
-          className="min-h-[88px] w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="min-h-[88px] w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
           placeholder="Flow input…"
           value={flowInput}
           onChange={(e) => setFlowInput(e.target.value)}
@@ -155,15 +155,15 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
           <Button onClick={runLive} disabled={running || !flowInput.trim()}>
             {running ? 'Running…' : 'Run live (engine SSE)'}
           </Button>
-          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={clearOverlay} disabled={!overlay}>
+          <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={clearOverlay} disabled={!overlay}>
             Clear overlay
           </Button>
         </div>
         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Governed AxPlane run (queued worker → ax-server)
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={selectedRequestId}
               onChange={(e) => setSelectedRequestId(e.target.value)}
             >
@@ -202,7 +202,7 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
           </button>
         </div>
         {runList.length === 0 ? (
-          <p className="text-sm text-slate-500">No saved runs for this flow yet.</p>
+          <p className="text-sm text-muted-foreground">No saved runs for this flow yet.</p>
         ) : (
           <ul className="max-h-64 space-y-2 overflow-y-auto">
             {runList.map((run) => (
@@ -211,15 +211,15 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
                   type="button"
                   onClick={() => void paintEngineRun(run.id)}
                   className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
-                    selectedRunId === run.id ? 'border-sky-700 bg-sky-950/30' : 'border-slate-800 hover:border-slate-700'
+                    selectedRunId === run.id ? 'border-sky-700 bg-sky-950/30' : 'border-border hover:border-border'
                   }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={run.ok ? 'text-emerald-400' : 'text-red-400'}>{run.ok ? 'ok' : 'fail'}</span>
-                    <span className="font-mono text-xs text-slate-500">{new Date(run.ts).toLocaleString()}</span>
-                    {run.latencySec ? <span className="text-xs text-slate-500">{run.latencySec.toFixed(1)}s</span> : null}
+                    <span className="font-mono text-xs text-muted-foreground">{new Date(run.ts).toLocaleString()}</span>
+                    {run.latencySec ? <span className="text-xs text-muted-foreground">{run.latencySec.toFixed(1)}s</span> : null}
                   </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-slate-400">{run.input}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{run.input}</p>
                 </button>
               </li>
             ))}

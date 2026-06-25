@@ -151,9 +151,9 @@ export function statusTone(status: string): string {
     case 'failed':
       return 'border-red-600 bg-red-950/40 text-red-200';
     case 'cancelled':
-      return 'border-slate-600 bg-slate-900 text-slate-300';
+      return 'border-border bg-muted text-muted-foreground';
     default:
-      return 'border-slate-700 bg-slate-900 text-slate-200';
+      return 'border-border bg-card text-foreground';
   }
 }
 
@@ -168,7 +168,7 @@ export function toolStatusTone(status: ToolCallView['status']): string {
     case 'blocked':
       return 'text-red-300';
     default:
-      return 'text-slate-300';
+      return 'text-muted-foreground';
   }
 }
 
@@ -182,6 +182,6 @@ export function approvalStatusTone(status: ApprovalView['status']): string {
     case 'required':
       return 'text-amber-300';
     default:
-      return 'text-slate-300';
+      return 'text-muted-foreground';
   }
 }

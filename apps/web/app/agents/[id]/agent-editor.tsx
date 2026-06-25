@@ -219,12 +219,12 @@ export function AgentEditor({ agentId }: { agentId: string }) {
     setError(null);
   }
 
-  if (agentQuery.isLoading) return <p className="text-sm text-slate-500">Loading agent…</p>;
+  if (agentQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading agent…</p>;
   if (agentQuery.isError || !agentQuery.data || !form) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-red-400">Agent not found or API unreachable.</p>
-        <Link href="/agents" className="text-sm text-slate-400 hover:text-white">← Back to agents</Link>
+        <Link href="/agents" className="text-sm text-muted-foreground hover:text-accent-foreground">← Back to agents</Link>
       </div>
     );
   }
@@ -235,24 +235,24 @@ export function AgentEditor({ agentId }: { agentId: string }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/agents" className="text-sm text-slate-500 hover:text-slate-300">← Agents</Link>
+          <Link href="/agents" className="text-sm text-muted-foreground hover:text-foreground">← Agents</Link>
           <h1 className="mt-1 text-2xl font-bold">{agent.name}</h1>
-          <p className="text-sm text-slate-500">{agent.id}</p>
+          <p className="text-sm text-muted-foreground">{agent.id}</p>
           {currentVersion ? (
-            <p className="mt-1 text-xs text-slate-500">
-              Current version: <span className="text-slate-300">v{currentVersion.version}</span>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Current version: <span className="text-foreground">v{currentVersion.version}</span>
               {isReadOnlyPreview ? ` · previewing v${previewVersion?.version}` : null}
             </p>
           ) : null}
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               checked={enabled}
               disabled={isReadOnlyPreview}
               onChange={(e) => setEnabled(e.target.checked)}
-              className="rounded border-slate-600"
+              className="rounded border-border"
             />
             Enabled
           </label>
@@ -273,13 +273,13 @@ export function AgentEditor({ agentId }: { agentId: string }) {
             Viewing historical version v{previewVersion?.version}.{' '}
             <button
               type="button"
-              className="underline hover:text-white"
+              className="underline hover:text-accent-foreground"
               onClick={() => previewVersion && loadVersionIntoEditor(previewVersion, true)}
             >
               Restore into editor
             </button>
             {' '}or{' '}
-            <button type="button" className="underline hover:text-white" onClick={() => { setPreviewVersionId(null); setDraft(null); setMessage(null); }}>
+            <button type="button" className="underline hover:text-accent-foreground" onClick={() => { setPreviewVersionId(null); setDraft(null); setMessage(null); }}>
               return to current
             </button>
             .
@@ -293,18 +293,18 @@ export function AgentEditor({ agentId }: { agentId: string }) {
             <h2 className="mb-4 text-lg font-semibold">Identity</h2>
             <div className="space-y-4">
               <label className="block space-y-1">
-                <span className="text-xs uppercase tracking-wide text-slate-500">Name</span>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">Name</span>
                 <input
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                   value={form.name}
                   disabled={isReadOnlyPreview}
                   onChange={(e) => updateDraft({ name: e.target.value })}
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-xs uppercase tracking-wide text-slate-500">Description</span>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">Description</span>
                 <textarea
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                   rows={3}
                   value={form.description}
                   disabled={isReadOnlyPreview}
@@ -312,9 +312,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-xs uppercase tracking-wide text-slate-500">Signature</span>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">Signature</span>
                 <input
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm"
+                  className="w-full rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
                   value={form.signature}
                   disabled={isReadOnlyPreview}
                   onChange={(e) => updateDraft({ signature: e.target.value })}
@@ -322,9 +322,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">Mode</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Mode</span>
                   <select
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                     value={form.mode}
                     disabled={isReadOnlyPreview}
                     onChange={(e) => updateDraft({ mode: e.target.value as AgentConfig['mode'] })}
@@ -334,9 +334,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                   </select>
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">Runtime</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Runtime</span>
                   <select
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                     value={form.runtime}
                     disabled={isReadOnlyPreview}
                     onChange={(e) => updateDraft({ runtime: e.target.value as AgentConfig['runtime'] })}
@@ -351,20 +351,20 @@ export function AgentEditor({ agentId }: { agentId: string }) {
 
           <Card>
             <h2 className="mb-1 text-lg font-semibold">Tools</h2>
-            <p className="mb-4 text-sm text-slate-500">
+            <p className="mb-4 text-sm text-muted-foreground">
               {form.tools.length} enabled · risky tools require approval at runtime
             </p>
             <div className="space-y-5">
               {Object.entries(toolsByNs).map(([ns, tools]) => (
                 <div key={ns}>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{ns}</h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{ns}</h3>
                   <div className="space-y-2">
                     {tools.map((tool) => {
                       const checked = form.tools.includes(tool.qualifiedName);
                       return (
                         <label
                           key={tool.qualifiedName}
-                          className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 ${checked ? 'border-slate-600 bg-slate-900/80' : 'border-slate-800'}`}
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 ${checked ? 'border-border bg-muted/80' : 'border-border'}`}
                         >
                           <input
                             type="checkbox"
@@ -383,7 +383,7 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                                 {tool.risk === 'risky' ? 'approval' : 'read-only'}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-500">{tool.description}</p>
+                            <p className="text-xs text-muted-foreground">{tool.description}</p>
                           </div>
                         </label>
                       );
@@ -396,12 +396,12 @@ export function AgentEditor({ agentId }: { agentId: string }) {
 
           <Card>
             <h2 className="mb-4 text-lg font-semibold">Routing</h2>
-            <p className="mb-4 text-sm text-slate-500">Keywords used by the request router to pick this agent.</p>
+            <p className="mb-4 text-sm text-muted-foreground">Keywords used by the request router to pick this agent.</p>
             <div className="space-y-4">
               <label className="block space-y-1">
-                <span className="text-xs uppercase tracking-wide text-slate-500">Keywords (comma-separated)</span>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">Keywords (comma-separated)</span>
                 <input
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                   value={(form.routing ?? { keywords: [], priority: 0, isDefault: false }).keywords.join(', ')}
                   disabled={isReadOnlyPreview}
                   onChange={(e) => updateDraft({
@@ -414,10 +414,10 @@ export function AgentEditor({ agentId }: { agentId: string }) {
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">Priority (tie-breaker)</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Priority (tie-breaker)</span>
                   <input
                     type="number"
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                     value={(form.routing ?? { keywords: [], priority: 0, isDefault: false }).priority}
                     disabled={isReadOnlyPreview}
                     onChange={(e) => updateDraft({
@@ -428,7 +428,7 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                     })}
                   />
                 </label>
-                <label className="flex items-center gap-2 pt-6 text-sm text-slate-300">
+                <label className="flex items-center gap-2 pt-6 text-sm text-foreground">
                   <input
                     type="checkbox"
                     checked={(form.routing ?? { keywords: [], priority: 0, isDefault: false }).isDefault}
@@ -448,20 +448,20 @@ export function AgentEditor({ agentId }: { agentId: string }) {
 
           <Card>
             <h2 className="mb-1 text-lg font-semibold">Models</h2>
-            <p className="mb-4 text-sm text-slate-500">
-              Per-agent overrides. API keys and base URL come from the worker <code className="text-slate-400">.env</code> — leave fields blank to inherit.
+            <p className="mb-4 text-sm text-muted-foreground">
+              Per-agent overrides. API keys and base URL come from the worker <code className="text-muted-foreground">.env</code> — leave fields blank to inherit.
             </p>
             <div className="space-y-6">
               {(['primary', 'fallback'] as const).map((slot) => {
                 const slotConfig = form.models?.[slot] ?? {};
                 return (
-                  <div key={slot} className="rounded-lg border border-slate-800 p-4">
-                    <h3 className="mb-3 text-sm font-semibold capitalize text-slate-300">{slot}</h3>
+                  <div key={slot} className="rounded-lg border border-border p-4">
+                    <h3 className="mb-3 text-sm font-semibold capitalize text-foreground">{slot}</h3>
                     <div className="grid gap-4 sm:grid-cols-3">
                       <label className="block space-y-1">
-                        <span className="text-xs uppercase tracking-wide text-slate-500">Provider</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Provider</span>
                         <input
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                           placeholder="openai"
                           value={slotConfig.provider ?? ''}
                           disabled={isReadOnlyPreview}
@@ -469,9 +469,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                         />
                       </label>
                       <label className="block space-y-1">
-                        <span className="text-xs uppercase tracking-wide text-slate-500">Model</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Model</span>
                         <input
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                           placeholder="gemini-3-flash"
                           value={slotConfig.model ?? ''}
                           disabled={isReadOnlyPreview}
@@ -479,13 +479,13 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                         />
                       </label>
                       <label className="block space-y-1">
-                        <span className="text-xs uppercase tracking-wide text-slate-500">Temperature</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Temperature</span>
                         <input
                           type="number"
                           min={0}
                           max={2}
                           step={0.1}
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                           placeholder="0"
                           value={slotConfig.temperature ?? ''}
                           disabled={isReadOnlyPreview}
@@ -503,10 +503,10 @@ export function AgentEditor({ agentId }: { agentId: string }) {
             <h2 className="mb-4 text-lg font-semibold">Policies & context</h2>
             <div className="space-y-4">
               <div>
-                <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Policies</p>
+                <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Policies</p>
                 <div className="flex flex-wrap gap-2">
                   {POLICY_OPTIONS.map((policy) => (
-                    <label key={policy} className="flex items-center gap-2 rounded-md border border-slate-800 px-3 py-1.5 text-sm">
+                    <label key={policy} className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm">
                       <input
                         type="checkbox"
                         checked={form.policies.includes(policy)}
@@ -520,9 +520,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">Context preset</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Context preset</span>
                   <select
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                     value={form.contextPolicy.preset}
                     disabled={isReadOnlyPreview}
                     onChange={(e) => updateDraft({ contextPolicy: { ...form.contextPolicy, preset: e.target.value } })}
@@ -531,9 +531,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                   </select>
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">Context budget</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Context budget</span>
                   <select
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm"
                     value={form.contextPolicy.budget}
                     disabled={isReadOnlyPreview}
                     onChange={(e) => updateDraft({ contextPolicy: { ...form.contextPolicy, budget: e.target.value } })}
@@ -549,21 +549,21 @@ export function AgentEditor({ agentId }: { agentId: string }) {
         <aside className="space-y-4">
           <Card>
             <h2 className="mb-3 text-sm font-semibold">Version history</h2>
-            {versionsQuery.isLoading ? <p className="text-xs text-slate-500">Loading…</p> : null}
+            {versionsQuery.isLoading ? <p className="text-xs text-muted-foreground">Loading…</p> : null}
             <ul className="space-y-2">
               {(versionsQuery.data ?? []).map((version) => (
                 <li key={version.id}>
                   <button
                     type="button"
                     onClick={() => loadVersionIntoEditor(version, false)}
-                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${version.isCurrent ? 'border-emerald-800 bg-emerald-950/30' : previewVersionId === version.id ? 'border-slate-500 bg-slate-900' : 'border-slate-800 hover:border-slate-600'}`}
+                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${version.isCurrent ? 'border-emerald-800 bg-emerald-950/30' : previewVersionId === version.id ? 'border-primary/40 bg-muted' : 'border-border hover:border-border'}`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">v{version.version}</span>
                       {version.isCurrent ? <span className="text-[10px] uppercase text-emerald-400">current</span> : null}
                     </div>
-                    <p className="mt-1 truncate font-mono text-[11px] text-slate-500">{version.signature}</p>
-                    <p className="text-[10px] text-slate-600">{new Date(version.createdAt).toLocaleString()}</p>
+                    <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{version.signature}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(version.createdAt).toLocaleString()}</p>
                   </button>
                 </li>
               ))}

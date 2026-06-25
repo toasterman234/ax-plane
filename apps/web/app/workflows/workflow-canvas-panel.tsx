@@ -17,14 +17,14 @@ export function WorkflowCanvasPanel({ workflow }: { workflow: WorkflowShape | nu
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-slate-800 px-4 py-3">
+      <div className="border-b border-border px-4 py-3">
         <h2 className="text-lg font-semibold">Topology</h2>
-        <p className="text-sm text-slate-400">
-          Read-only view of <span className="font-mono text-slate-300">{workflow.id}</span> — child-run steps, not ax-llm{' '}
+        <p className="text-sm text-muted-foreground">
+          Read-only view of <span className="font-mono text-foreground">{workflow.id}</span> — child-run steps, not ax-llm{' '}
           <code className="text-xs">flow()</code>.
         </p>
       </div>
-      <div className="h-[420px] bg-slate-950">
+      <div className="h-[420px] bg-card">
         <FlowCanvas spec={spec} />
       </div>
     </Card>

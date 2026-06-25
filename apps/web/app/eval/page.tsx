@@ -135,7 +135,7 @@ export default function EvalPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Eval lab</h1>
-        <p className="text-slate-400">
+        <p className="text-muted-foreground">
           Run deterministic case suites against an agent version. Mock mode is fast; real mode calls the LLM.
         </p>
       </div>
@@ -146,10 +146,10 @@ export default function EvalPage() {
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Suites</h2>
-          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemoSuite}>Install smoke suite</Button>
+          <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={seedDemoSuite}>Install smoke suite</Button>
         </div>
         {(suites.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No suites yet. Install the smoke suite to start.</p>
+          <p className="text-sm text-muted-foreground">No suites yet. Install the smoke suite to start.</p>
         ) : (
           <div className="space-y-2">
             {suites.data?.map((suite) => (
@@ -158,12 +158,12 @@ export default function EvalPage() {
                 type="button"
                 onClick={() => setSelectedSuiteId(suite.id)}
                 className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
-                  suite.id === activeSuiteId ? 'border-emerald-700 bg-emerald-950/30' : 'border-slate-800'
+                  suite.id === activeSuiteId ? 'border-emerald-700 bg-emerald-950/30' : 'border-border'
                 }`}
               >
                 <div className="font-medium">{suite.name}</div>
-                <div className="text-slate-400">{suite.description}</div>
-                <div className="text-xs text-slate-500">{suite.cases.length} cases</div>
+                <div className="text-muted-foreground">{suite.description}</div>
+                <div className="text-xs text-muted-foreground">{suite.cases.length} cases</div>
               </button>
             ))}
           </div>
@@ -173,10 +173,10 @@ export default function EvalPage() {
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Run suite</h2>
         <div className="grid gap-3 md:grid-cols-4">
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Agent
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={agentId}
               onChange={(e) => { setAgentId(e.target.value); setAgentVersionId(''); }}
             >
@@ -185,10 +185,10 @@ export default function EvalPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Version
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={agentVersionId}
               onChange={(e) => setAgentVersionId(e.target.value)}
             >
@@ -200,10 +200,10 @@ export default function EvalPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Mode
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={mode}
               onChange={(e) => setMode(e.target.value as 'mock' | 'real')}
             >
@@ -228,10 +228,10 @@ export default function EvalPage() {
                 type="button"
                 onClick={() => setSelectedRunId(run.id)}
                 className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
-                  selectedRunId === run.id ? 'border-sky-700 bg-sky-950/20' : 'border-slate-800'
+                  selectedRunId === run.id ? 'border-sky-700 bg-sky-950/20' : 'border-border'
                 }`}
               >
-                <div className="flex flex-wrap gap-3 text-slate-300">
+                <div className="flex flex-wrap gap-3 text-foreground">
                   <span>{new Date(run.createdAt).toLocaleString()}</span>
                   <span>{run.mode}</span>
                   <span className={run.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}>{run.status}</span>
@@ -249,10 +249,10 @@ export default function EvalPage() {
         <Card className="space-y-4 p-4">
           <h2 className="text-lg font-semibold">Run detail</h2>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-sm text-slate-300">
+            <label className="text-sm text-foreground">
               Compare against
               <select
-                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                 value={compareRunId}
                 onChange={(e) => setCompareRunId(e.target.value)}
               >
@@ -265,7 +265,7 @@ export default function EvalPage() {
               </select>
             </label>
             {comparison ? (
-              <div className="text-sm text-slate-300">
+              <div className="text-sm text-foreground">
                 <div>Score delta: {comparison.scoreDelta >= 0 ? '+' : ''}{comparison.scoreDelta}%</div>
                 <div>Passed cases delta: {comparison.passedDelta >= 0 ? '+' : ''}{comparison.passedDelta}</div>
               </div>
@@ -273,11 +273,11 @@ export default function EvalPage() {
           </div>
           <ul className="space-y-3">
             {(runDetail.data.results ?? []).map((result) => (
-              <li key={result.id} className="rounded-md border border-slate-800 p-3 text-sm">
+              <li key={result.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <span className="font-medium">{result.caseName}</span>
                   <span className={result.status === 'passed' ? 'text-emerald-400' : 'text-red-400'}>{result.status}</span>
-                  <span className="text-slate-500">{result.score}%</span>
+                  <span className="text-muted-foreground">{result.score}%</span>
                   {result.runId ? (
                     <Link href={`/runs/${result.runId}`} className="text-sky-400 hover:underline">View run</Link>
                   ) : null}

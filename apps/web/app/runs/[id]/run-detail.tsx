@@ -42,9 +42,9 @@ type Run = {
 type RunResponse = { run: Run; events: RunEvent[]; children?: Run[] };
 
 function JsonBlock({ value }: { value: unknown }) {
-  if (value === undefined || value === null) return <p className="text-sm text-slate-500">—</p>;
+  if (value === undefined || value === null) return <p className="text-sm text-muted-foreground">—</p>;
   return (
-    <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-300">
+    <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs text-foreground">
       {JSON.stringify(value, null, 2)}
     </pre>
   );
@@ -71,9 +71,9 @@ function Section({
       >
         <div>
           <h2 className="text-lg font-semibold">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
         </div>
-        <span className="text-xs text-slate-500">{open ? 'Hide' : 'Show'}</span>
+        <span className="text-xs text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open ? <div className="mt-4">{children}</div> : null}
     </Card>
@@ -144,15 +144,15 @@ export function RunDetail({ runId }: { runId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Run detail</h1>
-          <p className="font-mono text-sm text-slate-500">{runId}</p>
-          {run?.agentId ? <p className="mt-1 text-sm text-slate-400">agent: {run.agentId}</p> : null}
+          <p className="font-mono text-sm text-muted-foreground">{runId}</p>
+          {run?.agentId ? <p className="mt-1 text-sm text-muted-foreground">agent: {run.agentId}</p> : null}
           {run?.runKind === 'graph' ? <p className="mt-1 text-sm text-sky-400">graph workflow run</p> : null}
           {run?.runKind === 'axflow' ? <p className="mt-1 text-sm text-violet-400">ax-llm flow() run (governed)</p> : null}
           {run?.runKind === 'axdispatcher' ? <p className="mt-1 text-sm text-amber-400">ax-server dispatcher run (governed)</p> : null}
-          {run?.stepKey ? <p className="mt-1 text-sm text-slate-500">step: {run.stepKey}</p> : null}
+          {run?.stepKey ? <p className="mt-1 text-sm text-muted-foreground">step: {run.stepKey}</p> : null}
           {resolvedModel?.model ? (
-            <p className="mt-1 text-sm text-slate-400">
-              model: <span className="text-slate-200">{resolvedModel.model}</span>
+            <p className="mt-1 text-sm text-muted-foreground">
+              model: <span className="text-foreground">{resolvedModel.model}</span>
               {resolvedModel.provider ? ` · ${resolvedModel.provider}` : null}
               {resolvedModel.source ? ` · ${resolvedModel.source}` : null}
               {resolvedModel.temperature !== undefined ? ` · temp ${resolvedModel.temperature}` : null}
@@ -164,7 +164,7 @@ export function RunDetail({ runId }: { runId: string }) {
           {status === 'needs_approval' ? (
             <Link
               href="/approvals"
-              className="rounded-md bg-white px-3 py-2 text-sm font-medium text-slate-950 hover:bg-slate-200"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               Review approvals
             </Link>
@@ -176,11 +176,11 @@ export function RunDetail({ runId }: { runId: string }) {
         {run?.error ? <p className="text-red-300">{run.error}</p> : null}
         {output && typeof output === 'object' && output !== null && 'answer' in output ? (
           <div className="space-y-3">
-            <p className="text-base leading-relaxed text-slate-100">{String((output as { answer: unknown }).answer)}</p>
+            <p className="text-base leading-relaxed text-foreground">{String((output as { answer: unknown }).answer)}</p>
             {'nextActions' in output && Array.isArray((output as { nextActions: unknown }).nextActions) ? (
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500">Suggested next actions</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Suggested next actions</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground">
                   {((output as { nextActions: string[] }).nextActions).map((action) => (
                     <li key={action}>{action}</li>
                   ))}
@@ -191,7 +191,7 @@ export function RunDetail({ runId }: { runId: string }) {
         ) : output ? (
           <JsonBlock value={output} />
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             {status === 'running' || status === 'queued' ? 'Run still in progress…' : 'No final output yet.'}
           </p>
         )}
@@ -209,8 +209,8 @@ export function RunDetail({ runId }: { runId: string }) {
           {graphEvents.length > 0 ? (
             <ul className="mb-4 space-y-2">
               {graphEvents.map((event) => (
-                <li key={event.id} className="text-sm text-slate-300">
-                  <span className="font-mono text-xs text-slate-500">#{event.seq}</span>{' '}
+                <li key={event.id} className="text-sm text-foreground">
+                  <span className="font-mono text-xs text-muted-foreground">#{event.seq}</span>{' '}
                   {event.type}
                 </li>
               ))}
@@ -218,10 +218,10 @@ export function RunDetail({ runId }: { runId: string }) {
           ) : null}
           <ul className="space-y-2">
             {children.map((child) => (
-              <li key={child.id} className="rounded-md border border-slate-800 p-3 text-sm">
+              <li key={child.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-slate-200">{child.stepKey ?? 'step'}</span>
-                  <span className="text-slate-500">{child.agentId}</span>
+                  <span className="font-medium text-foreground">{child.stepKey ?? 'step'}</span>
+                  <span className="text-muted-foreground">{child.agentId}</span>
                   <span className={statusTone(child.status)}>{child.status}</span>
                   <Link href={`/runs/${child.id}`} className="text-sky-400 hover:underline">Open child run</Link>
                 </div>
@@ -233,18 +233,18 @@ export function RunDetail({ runId }: { runId: string }) {
 
       <Section title="Status" subtitle="Run lifecycle and pause points.">
         {inputRequest ? (
-          <div className="mb-4 rounded-md border border-slate-800 bg-slate-900/50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Input request</p>
-            <p className="mt-1 text-sm text-slate-200">{inputRequest}</p>
+          <div className="mb-4 rounded-md border border-border bg-muted/50 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Input request</p>
+            <p className="mt-1 text-sm text-foreground">{inputRequest}</p>
           </div>
         ) : null}
         {statusMessages.length === 0 ? (
-          <p className="text-sm text-slate-500">No status transitions recorded yet.</p>
+          <p className="text-sm text-muted-foreground">No status transitions recorded yet.</p>
         ) : (
           <ul className="space-y-2">
             {events.filter((e) => e.type === 'run.resumed').map((event) => (
               <li key={event.id} className="flex items-start gap-3 text-sm text-emerald-300">
-                <span className="font-mono text-xs text-slate-500">#{event.seq}</span>
+                <span className="font-mono text-xs text-muted-foreground">#{event.seq}</span>
                 <span>Resumed after approval (no full rerun)</span>
               </li>
             ))}
@@ -252,11 +252,11 @@ export function RunDetail({ runId }: { runId: string }) {
               const p = (event.payloadJson ?? {}) as Record<string, unknown>;
               return (
                 <li key={event.id} className="flex items-start gap-3 text-sm">
-                  <span className="font-mono text-xs text-slate-500">#{event.seq}</span>
+                  <span className="font-mono text-xs text-muted-foreground">#{event.seq}</span>
                   <div>
-                    <span className="font-medium text-slate-200">{String(p.status ?? p.message ?? 'status update')}</span>
-                    {p.approvalId ? <p className="text-xs text-slate-500">approval: {String(p.approvalId)}</p> : null}
-                    {p.message && p.status ? <p className="text-slate-400">{String(p.message)}</p> : null}
+                    <span className="font-medium text-foreground">{String(p.status ?? p.message ?? 'status update')}</span>
+                    {p.approvalId ? <p className="text-xs text-muted-foreground">approval: {String(p.approvalId)}</p> : null}
+                    {p.message && p.status ? <p className="text-muted-foreground">{String(p.message)}</p> : null}
                   </div>
                 </li>
               );
@@ -267,24 +267,24 @@ export function RunDetail({ runId }: { runId: string }) {
 
       <Section title="Tool calls" subtitle={`${toolCalls.length} tool invocation(s)`}>
         {toolCalls.length === 0 ? (
-          <p className="text-sm text-slate-500">No tool calls yet.</p>
+          <p className="text-sm text-muted-foreground">No tool calls yet.</p>
         ) : (
           <div className="space-y-3">
             {toolCalls.map((tool) => (
-              <div key={tool.id} className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+              <div key={tool.id} className="rounded-lg border border-border bg-muted/40 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-mono text-sm text-slate-100">{tool.name}</span>
+                  <span className="font-mono text-sm text-foreground">{tool.name}</span>
                   <span className={`text-xs font-medium uppercase ${toolStatusTone(tool.status)}`}>{tool.status}</span>
                 </div>
                 {tool.args !== undefined ? (
                   <div className="mt-2">
-                    <p className="text-xs text-slate-500">Args</p>
+                    <p className="text-xs text-muted-foreground">Args</p>
                     <JsonBlock value={tool.args} />
                   </div>
                 ) : null}
                 {tool.result !== undefined ? (
                   <div className="mt-2">
-                    <p className="text-xs text-slate-500">Result</p>
+                    <p className="text-xs text-muted-foreground">Result</p>
                     <JsonBlock value={tool.result} />
                   </div>
                 ) : null}
@@ -296,17 +296,17 @@ export function RunDetail({ runId }: { runId: string }) {
 
       <Section title="Approval gates" subtitle={`${approvals.length} approval event(s)`}>
         {approvals.length === 0 ? (
-          <p className="text-sm text-slate-500">No approval gates triggered.</p>
+          <p className="text-sm text-muted-foreground">No approval gates triggered.</p>
         ) : (
           <ul className="space-y-3">
             {approvals.map((row, i) => (
-              <li key={`${row.seq}-${i}`} className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+              <li key={`${row.seq}-${i}`} className="rounded-lg border border-border bg-muted/40 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-mono text-sm">{row.toolName}</span>
                   <span className={`text-xs font-medium uppercase ${approvalStatusTone(row.status)}`}>{row.status}</span>
                 </div>
-                {row.reason ? <p className="mt-2 text-sm text-slate-300">{row.reason}</p> : null}
-                {row.id ? <p className="mt-1 font-mono text-xs text-slate-500">{row.id}</p> : null}
+                {row.reason ? <p className="mt-2 text-sm text-foreground">{row.reason}</p> : null}
+                {row.id ? <p className="mt-1 font-mono text-xs text-muted-foreground">{row.id}</p> : null}
               </li>
             ))}
           </ul>
@@ -315,22 +315,22 @@ export function RunDetail({ runId }: { runId: string }) {
 
       <Section title="Actor turns" subtitle={`${actorTurns.length} Ax actor step(s)`}>
         {actorTurns.length === 0 ? (
-          <p className="text-sm text-slate-500">No actor turns yet.</p>
+          <p className="text-sm text-muted-foreground">No actor turns yet.</p>
         ) : (
           <div className="space-y-3">
             {actorTurns.map((turn) => (
-              <div key={turn.seq} className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+              <div key={turn.seq} className="rounded-lg border border-border bg-muted/40 p-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-mono text-xs text-slate-500">#{turn.seq}</span>
+                  <span className="font-mono text-xs text-muted-foreground">#{turn.seq}</span>
                   {turn.stage ? <span className="rounded-full border border-violet-700 px-2 py-0.5 text-xs text-violet-200">{turn.stage}</span> : null}
-                  {turn.turn !== undefined ? <span className="text-slate-400">turn {turn.turn}</span> : null}
+                  {turn.turn !== undefined ? <span className="text-muted-foreground">turn {turn.turn}</span> : null}
                 </div>
                 {turn.javascriptCode ? (
-                  <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-black/40 p-3 font-mono text-xs text-violet-100">{turn.javascriptCode}</pre>
+                  <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-muted/60 p-3 font-mono text-xs text-violet-100">{turn.javascriptCode}</pre>
                 ) : null}
                 {turn.result !== undefined ? (
                   <div className="mt-2">
-                    <p className="text-xs text-slate-500">Result</p>
+                    <p className="text-xs text-muted-foreground">Result</p>
                     <JsonBlock value={turn.result} />
                   </div>
                 ) : null}
@@ -341,7 +341,7 @@ export function RunDetail({ runId }: { runId: string }) {
       </Section>
 
       <Section title="Usage" subtitle="Token and staged usage captured from Ax." defaultOpen={false}>
-        {usage ? <JsonBlock value={usage} /> : <p className="text-sm text-slate-500">No usage captured yet.</p>}
+        {usage ? <JsonBlock value={usage} /> : <p className="text-sm text-muted-foreground">No usage captured yet.</p>}
       </Section>
 
       <Section title="Chat log" subtitle="Messages captured from the agent session." defaultOpen={false}>
@@ -351,9 +351,9 @@ export function RunDetail({ runId }: { runId: string }) {
               chatLog.map((entry, i) => {
                 const row = entry as { role?: string; content?: string };
                 return (
-                  <div key={i} className="rounded-md border border-slate-800 p-3">
-                    <p className="text-xs uppercase text-slate-500">{row.role ?? 'message'}</p>
-                    <p className="mt-1 text-sm text-slate-200">{row.content}</p>
+                  <div key={i} className="rounded-md border border-border p-3">
+                    <p className="text-xs uppercase text-muted-foreground">{row.role ?? 'message'}</p>
+                    <p className="mt-1 text-sm text-foreground">{row.content}</p>
                   </div>
                 );
               })
@@ -362,22 +362,22 @@ export function RunDetail({ runId }: { runId: string }) {
             )}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No chat log yet.</p>
+          <p className="text-sm text-muted-foreground">No chat log yet.</p>
         )}
       </Section>
 
       <Section title="Traces" subtitle="Observability traces from the run." defaultOpen={false}>
-        {traces ? <JsonBlock value={traces} /> : <p className="text-sm text-slate-500">No traces yet.</p>}
+        {traces ? <JsonBlock value={traces} /> : <p className="text-sm text-muted-foreground">No traces yet.</p>}
       </Section>
 
       <Section title="Raw event log" subtitle={`${events.length} durable event(s) — full timeline`} defaultOpen={false}>
         <div className="space-y-2">
           {events.map((event) => (
-            <details key={event.id} className="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+            <details key={event.id} className="rounded-lg border border-border bg-muted/30 p-3">
               <summary className="cursor-pointer text-sm">
-                <span className="font-mono text-xs text-slate-500">#{event.seq}</span>{' '}
-                <span className="text-slate-200">{event.type}</span>{' '}
-                <span className="text-xs text-slate-500">{new Date(event.createdAt).toLocaleTimeString()}</span>
+                <span className="font-mono text-xs text-muted-foreground">#{event.seq}</span>{' '}
+                <span className="text-foreground">{event.type}</span>{' '}
+                <span className="text-xs text-muted-foreground">{new Date(event.createdAt).toLocaleTimeString()}</span>
               </summary>
               <JsonBlock value={event.payloadJson} />
             </details>

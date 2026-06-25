@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const nav = [
   ['/', 'Home'],
+  ['/themes', 'Theme lab'],
   ['/agents', 'Agents'],
   ['/tools', 'Tools'],
   ['/memory', 'Memory'],
@@ -27,20 +28,32 @@ const nav = [
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <Providers>
-          <div className="min-h-screen grid grid-cols-[220px_1fr]">
-            <aside className="border-r border-slate-800 p-4">
-              <div className="mb-6 text-xl font-semibold">AxPlane</div>
-              <nav className="space-y-2">
+          <div className="min-h-screen grid grid-cols-[220px_1fr] bg-background">
+            <aside className="border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
+              <div className="mb-6 text-xl font-semibold text-sidebar-primary">AxPlane</div>
+              <nav className="space-y-1">
                 {nav.map(([href, label]) => (
-                  <Link key={href} href={href} className="block rounded-md px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white">
+                  <Link
+                    key={href}
+                    href={href}
+                    className="block rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
                     {label}
                   </Link>
                 ))}
               </nav>
             </aside>
-            <main className="p-6">
+            <main className="bg-background p-6 text-foreground">
               <AppStatusBanner />
               {children}
             </main>

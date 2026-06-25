@@ -47,17 +47,17 @@ export function AxFlowRunCanvasPanel({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-slate-800 px-4 py-3">
+      <div className="border-b border-border px-4 py-3">
         <h2 className="text-lg font-semibold">AxFlow topology</h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           Governed ax-llm <code className="text-xs">flow()</code> run —{' '}
-          <span className="font-mono text-slate-300">{axInput.flowId}</span>
+          <span className="font-mono text-foreground">{axInput.flowId}</span>
         </p>
       </div>
       {flowEntry.isLoading ? (
-        <p className="p-4 text-sm text-slate-500">Loading flow spec from engine…</p>
+        <p className="p-4 text-sm text-muted-foreground">Loading flow spec from engine…</p>
       ) : spec ? (
-        <div className="h-[440px] bg-slate-950">
+        <div className="h-[440px] bg-card">
           <FlowCanvas
             spec={spec}
             overlay={overlay}
@@ -71,7 +71,7 @@ export function AxFlowRunCanvasPanel({
       ) : (
         <p className="p-4 text-sm text-amber-400">Engine spec unavailable — is ax-server running?</p>
       )}
-      <div className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
+      <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
         Proxied via AxPlane worker; events in run log as <code>axflow.*</code>. Engine history also on{' '}
         <Link href="/ax-flows" className="text-sky-400 hover:underline">
           AX Flows

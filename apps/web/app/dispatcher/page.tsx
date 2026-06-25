@@ -115,7 +115,7 @@ export default function DispatcherPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Ax dispatcher</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-400">
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
           Proxied ax-server <code className="text-xs">/dispatcher</code> — dynamic RLM supervisor with{' '}
           <code className="text-xs">team.planner</code>, <code className="text-xs">team.coder</code>,{' '}
           <code className="text-xs">team.researcher</code> child agents. Governed runs use{' '}
@@ -127,22 +127,22 @@ export default function DispatcherPage() {
             {available ? 'dispatcher available' : 'unavailable'}
           </span>
           {status.data?.axServerUrl ? (
-            <span className="ml-2 font-mono text-xs text-slate-500">{status.data.axServerUrl}</span>
+            <span className="ml-2 font-mono text-xs text-muted-foreground">{status.data.axServerUrl}</span>
           ) : null}
         </p>
       </div>
 
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-slate-800 px-4 py-3">
+        <div className="border-b border-border px-4 py-3">
           <h2 className="text-lg font-semibold">{DISPATCHER_FLOW_ENTRY.title}</h2>
-          <p className="mt-1 text-sm text-slate-400">{DISPATCHER_FLOW_ENTRY.summary}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{DISPATCHER_FLOW_ENTRY.summary}</p>
         </div>
-        <div className="h-[420px] bg-slate-950">
+        <div className="h-[420px] bg-card">
           <FlowCanvas spec={DISPATCHER_FLOW_ENTRY.spec} overlay={overlay} details={details} />
         </div>
         {liveOutput !== null ? (
-          <div className="border-t border-slate-800 px-4 py-3 text-sm text-slate-300">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Answer</p>
+          <div className="border-t border-border px-4 py-3 text-sm text-foreground">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Answer</p>
             <p className="mt-1 whitespace-pre-wrap">{liveOutput || '…'}</p>
           </div>
         ) : null}
@@ -151,7 +151,7 @@ export default function DispatcherPage() {
       <Card className="space-y-3 p-4">
         <h3 className="font-semibold">Run dispatcher</h3>
         <textarea
-          className="min-h-[100px] w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="min-h-[100px] w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
           placeholder="Query for the dispatcher…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -162,10 +162,10 @@ export default function DispatcherPage() {
           </Button>
         </div>
         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Governed AxPlane run
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={selectedRequestId}
               onChange={(e) => setSelectedRequestId(e.target.value)}
             >
@@ -198,7 +198,7 @@ export default function DispatcherPage() {
       {activity.length ? (
         <Card className="p-4">
           <h3 className="font-semibold">Live activity</h3>
-          <ul className="mt-2 max-h-48 space-y-1 overflow-auto font-mono text-xs text-slate-400">
+          <ul className="mt-2 max-h-48 space-y-1 overflow-auto font-mono text-xs text-muted-foreground">
             {activity.map((line, i) => (
               <li key={`${i}-${line.slice(0, 24)}`}>{line}</li>
             ))}
@@ -206,7 +206,7 @@ export default function DispatcherPage() {
         </Card>
       ) : null}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         Graph child-runs: <Link href="/workflows" className="text-sky-400 hover:underline">Workflows</Link>. Ax{' '}
         <code>flow()</code>: <Link href="/ax-flows" className="text-sky-400 hover:underline">AX Flows</Link>.
       </p>

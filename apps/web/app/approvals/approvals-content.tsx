@@ -64,7 +64,7 @@ export function ApprovalsContent() {
             className={`rounded-full border px-3 py-1 text-sm capitalize ${
               statusFilter === status
                 ? 'border-emerald-700 bg-emerald-950/50 text-emerald-200'
-                : 'border-slate-700 text-slate-400 hover:text-slate-200'
+                : 'border-border text-muted-foreground hover:text-foreground'
             }`}
           >
             {status}
@@ -76,7 +76,7 @@ export function ApprovalsContent() {
         <p className="text-sm text-red-400">Could not load approvals — check that the API is running.</p>
       ) : null}
       {!approvals.isLoading && !approvals.isError && (approvals.data?.length ?? 0) === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           {statusFilter === 'pending' ? (
             <>
               No pending approvals. Start a run that hits a risky tool (e.g. submit a plan with &quot;fake risky tool&quot;), wait until status is{' '}
@@ -92,17 +92,17 @@ export function ApprovalsContent() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="font-semibold">{approval.toolName}</div>
-              <div className="text-sm text-slate-500">
+              <div className="text-sm text-muted-foreground">
                 run{' '}
                 <Link href={`/runs/${approval.runId}`} className="font-mono text-emerald-300 hover:underline">
                   {approval.runId}
                 </Link>
               </div>
-              <p className="mt-2 text-slate-300">{approval.reason}</p>
-              <pre className="mt-3 rounded-md bg-slate-900 p-3 text-xs">{JSON.stringify(approval.requestedActionJson, null, 2)}</pre>
+              <p className="mt-2 text-foreground">{approval.reason}</p>
+              <pre className="mt-3 rounded-md bg-muted p-3 text-xs">{JSON.stringify(approval.requestedActionJson, null, 2)}</pre>
             </div>
             <div className="flex min-w-32 flex-col gap-2">
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-center text-sm">{approval.status}</span>
+              <span className="rounded-full border border-border px-3 py-1 text-center text-sm">{approval.status}</span>
               {approval.status === 'pending' ? (
                 <>
                   <Button onClick={() => decide(approval.id, 'approve')}>Approve</Button>

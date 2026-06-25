@@ -95,7 +95,7 @@ export default function WorkflowsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Workflows</h1>
-        <p className="text-slate-400">
+        <p className="text-muted-foreground">
           Control-plane graph runs spawn child agent runs with handoffs — not in-process Ax child loops.
         </p>
       </div>
@@ -108,18 +108,18 @@ export default function WorkflowsPage() {
           <h2 className="text-lg font-semibold">Definitions</h2>
           <div className="flex flex-wrap gap-2">
             <Button
-              className="bg-slate-800 text-white hover:bg-slate-700"
+              className="bg-secondary text-secondary-foreground hover:opacity-90"
               onClick={() => (showBuilder ? setShowBuilder(false) : openNewBuilder())}
             >
               {showBuilder ? 'Close builder' : 'New workflow'}
             </Button>
-            <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemo}>
+            <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={seedDemo}>
               Install sample workflow
             </Button>
           </div>
         </div>
         {(workflows.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             No workflows yet. Build one below, or install the sample lookup → summarize graph.
           </p>
         ) : (
@@ -128,7 +128,7 @@ export default function WorkflowsPage() {
               <div
                 key={workflow.id}
                 className={`rounded-md border px-3 py-2 text-sm ${
-                  workflow.id === activeWorkflowId ? 'border-sky-700 bg-sky-950/20' : 'border-slate-800'
+                  workflow.id === activeWorkflowId ? 'border-sky-700 bg-sky-950/20' : 'border-border'
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -138,17 +138,17 @@ export default function WorkflowsPage() {
                     className="min-w-0 flex-1 text-left"
                   >
                     <div className="font-medium">{workflow.name}</div>
-                    <div className="text-slate-400">{workflow.description || workflow.id}</div>
+                    <div className="text-muted-foreground">{workflow.description || workflow.id}</div>
                   </button>
                   <Button
                     type="button"
-                    className="shrink-0 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    className="shrink-0 bg-muted text-foreground hover:bg-accent"
                     onClick={() => openEditBuilder(workflow)}
                   >
                     Edit
                   </Button>
                 </div>
-                <ol className="mt-2 list-decimal pl-5 text-xs text-slate-500">
+                <ol className="mt-2 list-decimal pl-5 text-xs text-muted-foreground">
                   {workflow.steps.map((step) => (
                     <li key={step.id}>{step.id} → {step.agentId}</li>
                   ))}
@@ -173,10 +173,10 @@ export default function WorkflowsPage() {
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Start graph run</h2>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Workflow
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={activeWorkflowId}
               onChange={(e) => setSelectedWorkflowId(e.target.value)}
             >
@@ -188,10 +188,10 @@ export default function WorkflowsPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Request
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={selectedRequestId}
               onChange={(e) => setSelectedRequestId(e.target.value)}
             >
@@ -210,7 +210,7 @@ export default function WorkflowsPage() {
           </Button>
         </div>
         {lastRunId ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Watch the parent run on{' '}
             <Link href={`/runs/${lastRunId}`} className="text-sky-400 hover:underline">run detail</Link>
             {' '}or browse all <Link href="/runs" className="text-sky-400 hover:underline">runs</Link>.

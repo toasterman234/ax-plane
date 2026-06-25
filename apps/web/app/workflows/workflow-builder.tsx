@@ -181,7 +181,7 @@ export function WorkflowBuilder({
     <Card className="space-y-4 p-4">
       <div>
         <h2 className="text-lg font-semibold">Build workflow</h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Each step runs a separate agent run. Use{' '}
           <code className="text-xs">{'{{taskText}}'}</code> and{' '}
           <code className="text-xs">{'{{steps.<stepId>.output.answer}}'}</code> in templates.
@@ -198,18 +198,18 @@ export function WorkflowBuilder({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1">
-          <span className="text-xs uppercase tracking-wide text-slate-500">Workflow id</span>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">Workflow id</span>
           <input
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm"
+            className="w-full rounded-md border border-border bg-card px-3 py-2 font-mono text-sm"
             value={draft.id}
             onChange={(e) => setDraft((current) => ({ ...current, id: e.target.value }))}
             placeholder="lookup_summarize"
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-xs uppercase tracking-wide text-slate-500">Name</span>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">Name</span>
           <input
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
             value={draft.name}
             onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))}
             placeholder="Lookup then summarize"
@@ -218,9 +218,9 @@ export function WorkflowBuilder({
       </div>
 
       <label className="block space-y-1">
-        <span className="text-xs uppercase tracking-wide text-slate-500">Description</span>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">Description</span>
         <textarea
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
           rows={2}
           value={draft.description}
           onChange={(e) => setDraft((current) => ({ ...current, description: e.target.value }))}
@@ -229,10 +229,10 @@ export function WorkflowBuilder({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-medium text-slate-200">Steps (run in order)</h3>
+          <h3 className="text-sm font-medium text-foreground">Steps (run in order)</h3>
           <Button
             type="button"
-            className="bg-slate-800 text-white hover:bg-slate-700"
+            className="bg-secondary text-secondary-foreground hover:opacity-90"
             onClick={addStep}
             disabled={!defaultAgentId}
           >
@@ -241,15 +241,15 @@ export function WorkflowBuilder({
         </div>
 
         {draft.steps.map((step, index) => (
-          <div key={`${index}-${step.id}`} className="space-y-3 rounded-md border border-slate-800 p-3">
+          <div key={`${index}-${step.id}`} className="space-y-3 rounded-md border border-border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Step {index + 1}
               </span>
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  className="bg-slate-900 text-slate-300 hover:bg-slate-800"
+                  className="bg-muted text-foreground hover:bg-accent"
                   disabled={index === 0}
                   onClick={() => moveStep(index, -1)}
                 >
@@ -257,7 +257,7 @@ export function WorkflowBuilder({
                 </Button>
                 <Button
                   type="button"
-                  className="bg-slate-900 text-slate-300 hover:bg-slate-800"
+                  className="bg-muted text-foreground hover:bg-accent"
                   disabled={index === draft.steps.length - 1}
                   onClick={() => moveStep(index, 1)}
                 >
@@ -265,7 +265,7 @@ export function WorkflowBuilder({
                 </Button>
                 <Button
                   type="button"
-                  className="bg-slate-900 text-red-300 hover:bg-slate-800"
+                  className="bg-muted text-red-300 hover:bg-accent"
                   disabled={draft.steps.length <= 1}
                   onClick={() => removeStep(index)}
                 >
@@ -276,17 +276,17 @@ export function WorkflowBuilder({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
-                <span className="text-xs text-slate-500">Step id</span>
+                <span className="text-xs text-muted-foreground">Step id</span>
                 <input
-                  className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 font-mono text-sm"
                   value={step.id}
                   onChange={(e) => updateStep(index, { id: e.target.value })}
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-xs text-slate-500">Agent</span>
+                <span className="text-xs text-muted-foreground">Agent</span>
                 <select
-                  className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                   value={step.agentId}
                   onChange={(e) => updateStep(index, { agentId: e.target.value })}
                 >
@@ -301,9 +301,9 @@ export function WorkflowBuilder({
             </div>
 
             <label className="block space-y-1">
-              <span className="text-xs text-slate-500">Input template</span>
+              <span className="text-xs text-muted-foreground">Input template</span>
               <textarea
-                className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs"
+                className="w-full rounded-md border border-border bg-card px-3 py-2 font-mono text-xs"
                 rows={index === 0 ? 2 : 4}
                 value={step.inputTemplate}
                 onChange={(e) => updateStep(index, { inputTemplate: e.target.value })}

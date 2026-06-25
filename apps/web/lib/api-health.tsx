@@ -45,7 +45,7 @@ export function ApiStatusBanner() {
   const health = useApiHealth();
 
   if (health.isLoading) {
-    return <p className="text-sm text-slate-500">Checking API at {API_URL}…</p>;
+    return <p className="text-sm text-muted-foreground">Checking API at {API_URL}…</p>;
   }
 
   if (health.isError) {

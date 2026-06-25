@@ -72,22 +72,22 @@ export function GraphRunCanvasPanel({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-slate-800 px-4 py-3">
+      <div className="border-b border-border px-4 py-3">
         <h2 className="text-lg font-semibold">Graph topology</h2>
-        <p className="text-sm text-slate-400">
-          Live step status from <span className="font-mono text-slate-300">{workflowId}</span>
+        <p className="text-sm text-muted-foreground">
+          Live step status from <span className="font-mono text-foreground">{workflowId}</span>
           {run.status === 'needs_approval' ? ' · paused for approval' : null}
         </p>
       </div>
 
       {workflow.isLoading ? (
-        <p className="p-4 text-sm text-slate-500">Loading workflow definition…</p>
+        <p className="p-4 text-sm text-muted-foreground">Loading workflow definition…</p>
       ) : workflow.error ? (
         <p className="p-4 text-sm text-red-400">
           {workflow.error instanceof Error ? workflow.error.message : 'Failed to load workflow'}
         </p>
       ) : spec ? (
-        <div className="h-[440px] bg-slate-950">
+        <div className="h-[440px] bg-card">
           <FlowCanvas
             spec={spec}
             overlay={overlay}
@@ -105,11 +105,11 @@ export function GraphRunCanvasPanel({
       ) : null}
 
       {selectedChild ? (
-        <div className="border-t border-slate-800 px-4 py-3 text-sm">
+        <div className="border-t border-border px-4 py-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-slate-200">{selectedChild.stepKey}</span>
-            <span className="text-slate-500">{selectedChild.agentId}</span>
-            <span className="text-slate-400">{selectedChild.status}</span>
+            <span className="font-medium text-foreground">{selectedChild.stepKey}</span>
+            <span className="text-muted-foreground">{selectedChild.agentId}</span>
+            <span className="text-muted-foreground">{selectedChild.status}</span>
             <Link href={`/runs/${selectedChild.id}`} className="text-sky-400 hover:underline">
               Open child run
             </Link>

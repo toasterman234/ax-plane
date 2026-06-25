@@ -198,12 +198,12 @@ export function AgentLab({ agentId }: { agentId: string }) {
 
   const busy = seedSuite.isPending || baselineEval.isPending || optimize.isPending;
 
-  if (agent.isLoading) return <p className="text-sm text-slate-500">Loading agent…</p>;
+  if (agent.isLoading) return <p className="text-sm text-muted-foreground">Loading agent…</p>;
   if (agent.isError || !agent.data) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-red-400">Agent not found or API unreachable.</p>
-        <Link href="/agents" className="text-sm text-slate-400 hover:text-white">← Back to agents</Link>
+        <Link href="/agents" className="text-sm text-muted-foreground hover:text-accent-foreground">← Back to agents</Link>
       </div>
     );
   }
@@ -212,9 +212,9 @@ export function AgentLab({ agentId }: { agentId: string }) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Agent Lab</h1>
-        <p className="text-sm text-slate-400">
-          Eval → optimize → compare → promote for <span className="text-slate-200">{agent.data.name}</span>.
-          Mock optimizer works without API keys; <span className="text-slate-300">ax-native</span> calls <code className="text-xs">agent.optimize()</code> in real mode.
+        <p className="text-sm text-muted-foreground">
+          Eval → optimize → compare → promote for <span className="text-foreground">{agent.data.name}</span>.
+          Mock optimizer works without API keys; <span className="text-foreground">ax-native</span> calls <code className="text-xs">agent.optimize()</code> in real mode.
         </p>
       </div>
 
@@ -225,7 +225,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Eval set</h2>
           <Button
-            className="bg-slate-800 text-white hover:bg-slate-700"
+            className="bg-secondary text-secondary-foreground hover:opacity-90"
             onClick={() => seedSuite.mutate()}
             disabled={seedSuite.isPending}
           >
@@ -233,11 +233,11 @@ export function AgentLab({ agentId }: { agentId: string }) {
           </Button>
         </div>
         {(suites.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No eval suites for this agent yet.</p>
+          <p className="text-sm text-muted-foreground">No eval suites for this agent yet.</p>
         ) : (
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto]">
             <select
-              className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={activeSuiteId}
               onChange={(e) => setSuiteId(e.target.value)}
             >
@@ -246,7 +246,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
               ))}
             </select>
             <select
-              className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={optimizerType}
               onChange={(e) => setOptimizerType(e.target.value as 'ax-native-mock' | 'ax-native')}
             >
@@ -254,7 +254,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
               <option value="ax-native">optimizer: ax-native</option>
             </select>
             <select
-              className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={optimizerType === 'ax-native' ? 'real' : mode}
               disabled={optimizerType === 'ax-native'}
               onChange={(e) => setMode(e.target.value as 'mock' | 'real')}
@@ -278,28 +278,28 @@ export function AgentLab({ agentId }: { agentId: string }) {
         <Card className="space-y-4 p-4">
           <h2 className="text-lg font-semibold">Comparison</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-md border border-slate-800 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-slate-300">Baseline</h3>
-              <dl className="space-y-1 text-sm text-slate-400">
-                <div>Score: <span className="text-slate-200">{comparison.baseline.averageScore}%</span></div>
-                <div>Passed: <span className="text-slate-200">{comparison.baseline.passedCases}/{comparison.baseline.caseCount}</span></div>
-                <div>Avg turns: <span className="text-slate-200">{comparison.baseline.avgTurns}</span></div>
-                <div>Tool mistakes: <span className="text-slate-200">{comparison.baseline.toolMistakes}</span></div>
-                <div>Cost/run: <span className="text-slate-200">${comparison.baseline.costUsd.toFixed(4)}</span></div>
+            <div className="rounded-md border border-border p-4">
+              <h3 className="mb-2 text-sm font-semibold text-foreground">Baseline</h3>
+              <dl className="space-y-1 text-sm text-muted-foreground">
+                <div>Score: <span className="text-foreground">{comparison.baseline.averageScore}%</span></div>
+                <div>Passed: <span className="text-foreground">{comparison.baseline.passedCases}/{comparison.baseline.caseCount}</span></div>
+                <div>Avg turns: <span className="text-foreground">{comparison.baseline.avgTurns}</span></div>
+                <div>Tool mistakes: <span className="text-foreground">{comparison.baseline.toolMistakes}</span></div>
+                <div>Cost/run: <span className="text-foreground">${comparison.baseline.costUsd.toFixed(4)}</span></div>
               </dl>
             </div>
             <div className="rounded-md border border-emerald-900/40 bg-emerald-950/10 p-4">
               <h3 className="mb-2 text-sm font-semibold text-emerald-300">Candidate</h3>
-              <dl className="space-y-1 text-sm text-slate-400">
-                <div>Score: <span className="text-slate-200">{comparison.candidate.averageScore}%</span></div>
-                <div>Passed: <span className="text-slate-200">{comparison.candidate.passedCases}/{comparison.candidate.caseCount}</span></div>
-                <div>Avg turns: <span className="text-slate-200">{comparison.candidate.avgTurns}</span></div>
-                <div>Tool mistakes: <span className="text-slate-200">{comparison.candidate.toolMistakes}</span></div>
-                <div>Cost/run: <span className="text-slate-200">${comparison.candidate.costUsd.toFixed(4)}</span></div>
+              <dl className="space-y-1 text-sm text-muted-foreground">
+                <div>Score: <span className="text-foreground">{comparison.candidate.averageScore}%</span></div>
+                <div>Passed: <span className="text-foreground">{comparison.candidate.passedCases}/{comparison.candidate.caseCount}</span></div>
+                <div>Avg turns: <span className="text-foreground">{comparison.candidate.avgTurns}</span></div>
+                <div>Tool mistakes: <span className="text-foreground">{comparison.candidate.toolMistakes}</span></div>
+                <div>Cost/run: <span className="text-foreground">${comparison.candidate.costUsd.toFixed(4)}</span></div>
               </dl>
             </div>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Delta: score {comparison.delta.score >= 0 ? '+' : ''}{comparison.delta.score}% ·
             turns {comparison.delta.avgTurns >= 0 ? '+' : ''}{comparison.delta.avgTurns} ·
             mistakes {comparison.delta.toolMistakes >= 0 ? '+' : ''}{comparison.delta.toolMistakes}
@@ -310,17 +310,17 @@ export function AgentLab({ agentId }: { agentId: string }) {
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Candidates</h2>
         {(candidates.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No candidates yet. Run Optimize agent to create one.</p>
+          <p className="text-sm text-muted-foreground">No candidates yet. Run Optimize agent to create one.</p>
         ) : (
           <ul className="space-y-3">
             {(candidates.data ?? []).map((candidate) => (
-              <li key={candidate.id} className="rounded-md border border-slate-800 p-4">
+              <li key={candidate.id} className="rounded-md border border-border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="font-medium">{candidate.name}</div>
-                    <div className="text-xs text-slate-500">{new Date(candidate.createdAt).toLocaleString()}</div>
-                    <div className="mt-1 text-sm text-slate-400">
-                      Status: <span className="text-slate-200">{candidate.status}</span>
+                    <div className="text-xs text-muted-foreground">{new Date(candidate.createdAt).toLocaleString()}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      Status: <span className="text-foreground">{candidate.status}</span>
                       {candidate.baselineScore != null && candidate.candidateScore != null ? (
                         <span> · {candidate.baselineScore}% → {candidate.candidateScore}%</span>
                       ) : null}
@@ -328,7 +328,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
-                      className="bg-slate-800 text-white hover:bg-slate-700"
+                      className="bg-secondary text-secondary-foreground hover:opacity-90"
                       onClick={() => setSelectedCandidateId(candidate.id)}
                     >
                       View
@@ -350,7 +350,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
                   </div>
                 </div>
                 {selectedCandidateId === candidate.id && candidate.artifactText ? (
-                  <pre className="mt-3 overflow-x-auto rounded-md bg-slate-950 p-3 text-xs text-slate-300 whitespace-pre-wrap">
+                  <pre className="mt-3 overflow-x-auto rounded-md bg-card p-3 text-xs text-foreground whitespace-pre-wrap">
                     {candidate.artifactText}
                   </pre>
                 ) : null}
@@ -363,12 +363,12 @@ export function AgentLab({ agentId }: { agentId: string }) {
       <Card className="space-y-3 p-4">
         <h2 className="text-lg font-semibold">Optimization runs</h2>
         {(optimizationRuns.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No optimization runs yet.</p>
+          <p className="text-sm text-muted-foreground">No optimization runs yet.</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {(optimizationRuns.data ?? []).map((run) => (
-              <li key={run.id} className="rounded-md border border-slate-800 px-3 py-2">
-                <div className="flex flex-wrap gap-3 text-slate-300">
+              <li key={run.id} className="rounded-md border border-border px-3 py-2">
+                <div className="flex flex-wrap gap-3 text-foreground">
                   <span>{new Date(run.createdAt).toLocaleString()}</span>
                   <span>{run.optimizerType}</span>
                   <span className={run.status === 'completed' ? 'text-emerald-400' : run.status === 'failed' ? 'text-red-400' : 'text-amber-400'}>

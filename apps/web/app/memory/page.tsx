@@ -69,7 +69,7 @@ export default function MemoryPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Memory</h1>
-        <p className="text-slate-400">
+        <p className="text-muted-foreground">
           Persistent recall across runs. The memory kernel auto-injects relevant entries at run start; agents can also use memory.* tools.
         </p>
       </div>
@@ -80,25 +80,25 @@ export default function MemoryPage() {
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Seed a memory</h2>
         <textarea
-          className="w-full rounded-md border border-slate-700 bg-slate-950 p-3 text-sm"
+          className="w-full rounded-md border border-border bg-card p-3 text-sm"
           rows={3}
           placeholder="Ben prefers approval-gated write tools."
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
         <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Tags (comma-separated)
             <input
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Scope
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={scope}
               onChange={(e) => setScope(e.target.value as 'global' | 'agent')}
             >
@@ -107,10 +107,10 @@ export default function MemoryPage() {
             </select>
           </label>
           {scope === 'agent' ? (
-            <label className="text-sm text-slate-300">
+            <label className="text-sm text-foreground">
               Agent
               <select
-                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                 value={agentId}
                 onChange={(e) => setAgentId(e.target.value)}
               >
@@ -129,10 +129,10 @@ export default function MemoryPage() {
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Browse</h2>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Filter by agent
             <select
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               value={filterAgentId}
               onChange={(e) => setFilterAgentId(e.target.value)}
             >
@@ -143,10 +143,10 @@ export default function MemoryPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-foreground">
             Search
             <input
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
               placeholder="approval tools"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -154,23 +154,23 @@ export default function MemoryPage() {
           </label>
         </div>
 
-        {memory.isLoading ? <p className="text-sm text-slate-400">Loading…</p> : null}
+        {memory.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
         <ul className="space-y-3">
           {(memory.data ?? []).map((entry) => (
-            <li key={entry.id} className="rounded-md border border-slate-800 p-3 text-sm">
-              <div className="mb-1 flex flex-wrap gap-2 text-xs text-slate-500">
+            <li key={entry.id} className="rounded-md border border-border p-3 text-sm">
+              <div className="mb-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span>{entry.agentId ? `agent:${entry.agentId}` : 'global'}</span>
                 <span>{new Date(entry.createdAt).toLocaleString()}</span>
                 {entry.tags.map((tag) => (
-                  <span key={tag} className="rounded bg-slate-900 px-2 py-0.5">{tag}</span>
+                  <span key={tag} className="rounded bg-muted px-2 py-0.5">{tag}</span>
                 ))}
               </div>
-              <p className="text-slate-200">{entry.content}</p>
+              <p className="text-foreground">{entry.content}</p>
             </li>
           ))}
         </ul>
         {!memory.isLoading && (memory.data?.length ?? 0) === 0 ? (
-          <p className="text-sm text-slate-500">No memories yet. Seed one above or let an agent call memory.save during a run.</p>
+          <p className="text-sm text-muted-foreground">No memories yet. Seed one above or let an agent call memory.save during a run.</p>
         ) : null}
       </Card>
     </div>

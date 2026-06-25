@@ -14,16 +14,16 @@ export default function RunsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Runs</h1>
-        <p className="text-slate-400">Durable Ax run history.</p>
+        <p className="text-muted-foreground">Durable Ax run history.</p>
       </div>
       {runs.data?.map((run) => (
         <Card key={run.id}>
           <div className="flex items-center justify-between">
             <div>
               <Link href={`/runs/${run.id}`} className="font-mono text-sm underline">{run.id}</Link>
-              <div className="mt-1 text-sm text-slate-400">{run.agentId} · {new Date(run.createdAt).toLocaleString()}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{run.agentId} · {new Date(run.createdAt).toLocaleString()}</div>
             </div>
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-sm">{run.status}</span>
+            <span className="rounded-full border border-border px-3 py-1 text-sm">{run.status}</span>
           </div>
         </Card>
       ))}

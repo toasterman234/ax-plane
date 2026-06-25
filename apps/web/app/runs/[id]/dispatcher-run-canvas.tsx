@@ -38,13 +38,13 @@ export function DispatcherRunCanvasPanel({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-slate-800 px-4 py-3">
+      <div className="border-b border-border px-4 py-3">
         <h2 className="text-lg font-semibold">Dispatcher team topology</h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           Governed ax-server <code className="text-xs">/dispatcher</code> run — dynamic team delegation
         </p>
       </div>
-      <div className="h-[440px] bg-slate-950">
+      <div className="h-[440px] bg-card">
         <FlowCanvas
           spec={DISPATCHER_FLOW_ENTRY.spec}
           overlay={overlay}
@@ -55,7 +55,7 @@ export function DispatcherRunCanvasPanel({
           }}
         />
       </div>
-      <div className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
+      <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
         Proxied via AxPlane worker; events in run log as <code>dispatcher.*</code>. Live runs on{' '}
         <Link href="/dispatcher" className="text-sky-400 hover:underline">
           Dispatcher

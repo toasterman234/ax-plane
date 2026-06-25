@@ -41,13 +41,13 @@ export default function AxFlowsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">AX Flows</h1>
-        <p className="mt-1 text-slate-400">
+        <p className="mt-1 text-muted-foreground">
           ax-llm <code className="text-sm">flow()</code> programs from ax-server — structure, engine run history with trace
           overlay, live SSE runs, and optional governed AxPlane runs (<code className="text-sm">runKind: axflow</code>).
         </p>
       </div>
 
-      {catalog.isLoading ? <p className="text-sm text-slate-500">Loading flow catalog…</p> : null}
+      {catalog.isLoading ? <p className="text-sm text-muted-foreground">Loading flow catalog…</p> : null}
       {catalog.error ? (
         <p className="text-sm text-red-400">
           {catalog.error instanceof Error ? catalog.error.message : 'Failed to load ax-flows'}
@@ -55,7 +55,7 @@ export default function AxFlowsPage() {
       ) : null}
 
       {!catalog.isLoading && flows.length === 0 ? (
-        <Card className="p-4 text-sm text-slate-400">
+        <Card className="p-4 text-sm text-muted-foreground">
           <p>No flows returned from the engine.</p>
           <p className="mt-2">
             Start ax-server in ax-sandbox (<code className="text-xs">pnpm server</code>, port{' '}
@@ -79,7 +79,7 @@ export default function AxFlowsPage() {
       {flows.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <Card className="max-h-[80vh] space-y-2 overflow-y-auto p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {flows.length} flow{flows.length === 1 ? '' : 's'} from engine
             </p>
             {flows.map((flow) => (
@@ -89,13 +89,13 @@ export default function AxFlowsPage() {
                 onClick={() => setSelectedId(flow.id)}
                 className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
                   flow.id === activeId
-                    ? 'border-sky-700 bg-sky-950/30 text-slate-100'
-                    : 'border-slate-800 text-slate-300 hover:border-slate-700'
+                    ? 'border-sky-700 bg-sky-950/30 text-foreground'
+                    : 'border-border text-foreground hover:border-border'
                 }`}
               >
                 <div className="font-medium">{flow.title || flow.id}</div>
-                <div className="mt-0.5 font-mono text-xs text-slate-500">{flow.id}</div>
-                {flow.summary ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{flow.summary}</p> : null}
+                <div className="mt-0.5 font-mono text-xs text-muted-foreground">{flow.id}</div>
+                {flow.summary ? <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{flow.summary}</p> : null}
               </button>
             ))}
           </Card>
