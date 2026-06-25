@@ -1,5 +1,6 @@
 import { evaluatePolicy, PendingApprovalError, PolicyBlockedError } from '@axplane/policy';
-import { defaultToolRisk, executeHostTool } from '@axplane/host-tools';
+import { defaultToolRisk, executeHostTool, type HostToolDefinition } from '@axplane/host-tools';
+import { executeMemoryTool, isMemoryTool } from '@axplane/memory';
 import type { Repositories } from '@axplane/db';
 
 export type GuardedToolArgs = {
@@ -9,11 +10,23 @@ export type GuardedToolArgs = {
   toolArgs: Record<string, unknown>;
   existingToolCallId?: string;
   skipIfCompleted?: boolean;
+  customTools?: HostToolDefinition[];
+  agentId?: string | null;
 };
 
 export async function guardedHostTool(args: GuardedToolArgs) {
-  const { repo, runId, qualifiedName, toolArgs, existingToolCallId, skipIfCompleted = true } = args;
-  const risk = defaultToolRisk(qualifiedName);
+  const {
+    repo,
+    runId,
+    qualifiedName,
+    toolArgs,
+    existingToolCallId,
+    skipIfCompleted = true,
+    customTools = [],
+    agentId: explicitAgentId,
+  } = args;
+  const toolCtx = { customTools };
+  const risk = defaultToolRisk(qualifiedName, toolCtx);
 
   if (skipIfCompleted && !existingToolCallId) {
     const cached = await repo.findCompletedToolCall(runId, qualifiedName, toolArgs);
@@ -78,7 +91,14 @@ export async function guardedHostTool(args: GuardedToolArgs) {
   await repo.updateToolCall(toolCall.id, { status: 'allowed' });
   await repo.appendRunEvent(runId, 'ax.function_call.allowed', { toolCallId: toolCall.id, qualifiedName, decision });
 
-  const result = await executeHostTool(qualifiedName, toolArgs);
+  const agentId = explicitAgentId ?? (await repo.getRun(runId))?.agentId ?? null;
+  const result = isMemoryTool(qualifiedName)
+    ? await executeMemoryTool(repo, { qualifiedName, args: toolArgs, agentId, runId })
+    : await executeHostTool(qualifiedName, toolArgs, toolCtx);
+
+  if (qualifiedName === 'memory.save') {
+    await repo.appendRunEvent(runId, 'memory.saved', { result });
+  }
 
   await repo.updateToolCall(toolCall.id, { status: 'completed', resultJson: result });
   await repo.appendRunEvent(runId, 'ax.function_call.completed', { toolCallId: toolCall.id, qualifiedName, result });

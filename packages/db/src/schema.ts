@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 export const agents = pgTable('agents', {
@@ -48,6 +49,9 @@ export const runs = pgTable('runs', {
   requestId: uuid('request_id').notNull().references(() => requests.id, { onDelete: 'cascade' }),
   agentId: text('agent_id').notNull().references(() => agents.id),
   agentVersionId: uuid('agent_version_id').references(() => agentVersions.id),
+  parentRunId: uuid('parent_run_id').references((): AnyPgColumn => runs.id, { onDelete: 'cascade' }),
+  stepKey: text('step_key'),
+  runKind: text('run_kind').notNull().default('agent'),
   status: text('status').notNull().default('queued'),
   inputJson: jsonb('input_json').notNull().default(sql`'{}'::jsonb`),
   outputJson: jsonb('output_json'),
@@ -58,6 +62,7 @@ export const runs = pgTable('runs', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   statusIdx: index('runs_status_idx').on(table.status),
+  parentIdx: index('runs_parent_idx').on(table.parentRunId),
 }));
 
 export const runEvents = pgTable('run_events', {
@@ -117,6 +122,86 @@ export const artifacts = pgTable('artifacts', {
   metadataJson: jsonb('metadata_json').notNull().default(sql`'{}'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const memoryEntries = pgTable('memory_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: text('agent_id').references(() => agents.id, { onDelete: 'cascade' }),
+  runId: uuid('run_id').references(() => runs.id, { onDelete: 'set null' }),
+  content: text('content').notNull(),
+  tags: jsonb('tags').notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  agentIdx: index('memory_entries_agent_idx').on(table.agentId),
+  createdIdx: index('memory_entries_created_idx').on(table.createdAt),
+}));
+
+export const customTools = pgTable('custom_tools', {
+  qualifiedName: text('qualified_name').primaryKey(),
+  namespace: text('namespace').notNull().default('http'),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  risk: text('risk').notNull().default('risky'),
+  method: text('method').notNull().default('POST'),
+  urlTemplate: text('url_template').notNull(),
+  parameters: jsonb('parameters').notNull().default(sql`'{}'::jsonb`),
+  headersJson: jsonb('headers_json').notNull().default(sql`'{}'::jsonb`),
+  bodyTemplate: text('body_template'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const graphWorkflows = pgTable('graph_workflows', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  steps: jsonb('steps').notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const evalSuites = pgTable('eval_suites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const evalCases = pgTable('eval_cases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  suiteId: uuid('suite_id').notNull().references(() => evalSuites.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  taskText: text('task_text').notNull(),
+  criteria: jsonb('criteria').notNull().default(sql`'[]'::jsonb`),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  suiteIdx: index('eval_cases_suite_idx').on(table.suiteId, table.sortOrder),
+}));
+
+export const evalRuns = pgTable('eval_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  suiteId: uuid('suite_id').notNull().references(() => evalSuites.id, { onDelete: 'cascade' }),
+  agentId: text('agent_id').notNull().references(() => agents.id),
+  agentVersionId: uuid('agent_version_id').references(() => agentVersions.id),
+  status: text('status').notNull().default('running'),
+  mode: text('mode').notNull().default('mock'),
+  summaryJson: jsonb('summary_json'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (table) => ({
+  suiteIdx: index('eval_runs_suite_idx').on(table.suiteId, table.createdAt),
+}));
+
+export const evalCaseResults = pgTable('eval_case_results', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  evalRunId: uuid('eval_run_id').notNull().references(() => evalRuns.id, { onDelete: 'cascade' }),
+  caseId: uuid('case_id').notNull().references(() => evalCases.id, { onDelete: 'cascade' }),
+  runId: uuid('run_id').references(() => runs.id, { onDelete: 'set null' }),
+  status: text('status').notNull(),
+  score: integer('score').notNull().default(0),
+  detailsJson: jsonb('details_json').notNull().default(sql`'{}'::jsonb`),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  evalRunIdx: index('eval_case_results_run_idx').on(table.evalRunId),
+}));
 
 export const agentsRelations = relations(agents, ({ many }) => ({
   versions: many(agentVersions),

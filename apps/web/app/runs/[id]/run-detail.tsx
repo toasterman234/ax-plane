@@ -23,10 +23,13 @@ type Run = {
   outputJson?: unknown;
   error?: string;
   agentId?: string;
+  runKind?: string;
+  parentRunId?: string | null;
+  stepKey?: string | null;
   createdAt?: string;
 };
 
-type RunResponse = { run: Run; events: RunEvent[] };
+type RunResponse = { run: Run; events: RunEvent[]; children?: Run[] };
 
 function JsonBlock({ value }: { value: unknown }) {
   if (value === undefined || value === null) return <p className="text-sm text-slate-500">—</p>;
@@ -70,11 +73,13 @@ function Section({
 export function RunDetail({ runId }: { runId: string }) {
   const [run, setRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
+  const [children, setChildren] = useState<Run[]>([]);
 
   useEffect(() => {
     api<RunResponse>(`/runs/${runId}`).then((data) => {
       setRun(data.run);
       setEvents(data.events);
+      setChildren(data.children ?? []);
     });
   }, [runId]);
 
@@ -85,8 +90,11 @@ export function RunDetail({ runId }: { runId: string }) {
       setEvents((current) =>
         current.some((e) => e.id === event.id) ? current : [...current, event].sort((a, b) => a.seq - b.seq),
       );
-      if (['run.completed', 'run.failed', 'run.cancelled', 'run.status'].includes(event.type)) {
-        api<RunResponse>(`/runs/${runId}`).then((data) => setRun(data.run)).catch(() => undefined);
+      if (['run.completed', 'run.failed', 'run.cancelled', 'run.status', 'graph.completed', 'graph.step.completed'].includes(event.type)) {
+        api<RunResponse>(`/runs/${runId}`).then((data) => {
+          setRun(data.run);
+          setChildren(data.children ?? []);
+        }).catch(() => undefined);
       }
     };
     return () => source.close();
@@ -99,6 +107,13 @@ export function RunDetail({ runId }: { runId: string }) {
   const chatLog = latestPayload(events, 'ax.chat_log.captured')?.chatLog;
   const usage = latestPayload(events, 'ax.usage.captured');
   const traces = latestPayload(events, 'ax.traces.captured')?.traces;
+  const resolvedModel = latestPayload(events, 'ax.model.resolved') as {
+    model?: string;
+    provider?: string;
+    source?: string;
+    temperature?: number;
+    mode?: string;
+  } | null;
 
   const output = run?.outputJson ?? latestPayload(events, 'run.completed')?.output;
   const inputRequest =
@@ -109,6 +124,7 @@ export function RunDetail({ runId }: { runId: string }) {
       : null;
 
   const statusMessages = events.filter((e) => e.type === 'run.status');
+  const graphEvents = events.filter((e) => e.type.startsWith('graph.'));
 
   return (
     <div className="space-y-5">
@@ -117,6 +133,16 @@ export function RunDetail({ runId }: { runId: string }) {
           <h1 className="text-2xl font-bold">Run detail</h1>
           <p className="font-mono text-sm text-slate-500">{runId}</p>
           {run?.agentId ? <p className="mt-1 text-sm text-slate-400">agent: {run.agentId}</p> : null}
+          {run?.runKind === 'graph' ? <p className="mt-1 text-sm text-sky-400">graph workflow run</p> : null}
+          {run?.stepKey ? <p className="mt-1 text-sm text-slate-500">step: {run.stepKey}</p> : null}
+          {resolvedModel?.model ? (
+            <p className="mt-1 text-sm text-slate-400">
+              model: <span className="text-slate-200">{resolvedModel.model}</span>
+              {resolvedModel.provider ? ` · ${resolvedModel.provider}` : null}
+              {resolvedModel.source ? ` · ${resolvedModel.source}` : null}
+              {resolvedModel.temperature !== undefined ? ` · temp ${resolvedModel.temperature}` : null}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <span className={`rounded-full border px-3 py-1 text-sm font-medium ${statusTone(status)}`}>{status}</span>
@@ -155,6 +181,33 @@ export function RunDetail({ runId }: { runId: string }) {
           </p>
         )}
       </Section>
+
+      {(children.length > 0 || graphEvents.length > 0) ? (
+        <Section title="Graph steps" subtitle={`${children.length} child run(s)`}>
+          {graphEvents.length > 0 ? (
+            <ul className="mb-4 space-y-2">
+              {graphEvents.map((event) => (
+                <li key={event.id} className="text-sm text-slate-300">
+                  <span className="font-mono text-xs text-slate-500">#{event.seq}</span>{' '}
+                  {event.type}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <ul className="space-y-2">
+            {children.map((child) => (
+              <li key={child.id} className="rounded-md border border-slate-800 p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-slate-200">{child.stepKey ?? 'step'}</span>
+                  <span className="text-slate-500">{child.agentId}</span>
+                  <span className={statusTone(child.status)}>{child.status}</span>
+                  <Link href={`/runs/${child.id}`} className="text-sky-400 hover:underline">Open child run</Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
 
       <Section title="Status" subtitle="Run lifecycle and pause points.">
         {inputRequest ? (

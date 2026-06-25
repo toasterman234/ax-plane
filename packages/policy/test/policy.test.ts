@@ -16,6 +16,8 @@ describe('evaluatePolicy', () => {
     expect(evaluatePolicy({ runId: 'r1', qualifiedName: 'repo.readFile', args: { path: 'README.md' } }).decision).toBe('allow');
     expect(evaluatePolicy({ runId: 'r1', qualifiedName: 'github.searchIssues', args: { query: 'bug' } }).decision).toBe('allow');
     expect(evaluatePolicy({ runId: 'r1', qualifiedName: 'docs.search', args: { query: 'architecture' } }).decision).toBe('allow');
+    expect(evaluatePolicy({ runId: 'r1', qualifiedName: 'memory.save', args: { content: 'fact' } }).decision).toBe('allow');
+    expect(evaluatePolicy({ runId: 'r1', qualifiedName: 'memory.search', args: { query: 'fact' } }).decision).toBe('allow');
   });
 
   it('requires approval for write and shell tools', () => {

@@ -7,6 +7,12 @@ import { api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+type AgentModelSlot = {
+  provider?: string;
+  model?: string;
+  temperature?: number;
+};
+
 export type AgentConfig = {
   id: string;
   name: string;
@@ -18,7 +24,11 @@ export type AgentConfig = {
   contextPolicy: { preset: string; budget: string };
   tools: string[];
   policies: string[];
-  models: Record<string, unknown>;
+  models: {
+    primary?: AgentModelSlot;
+    fallback?: AgentModelSlot;
+    default?: AgentModelSlot;
+  };
   routing: { keywords: string[]; priority: number; isDefault: boolean };
 };
 
@@ -45,6 +55,7 @@ type ToolDescriptor = {
   name: string;
   description: string;
   risk: 'safe' | 'risky';
+  custom?: boolean;
 };
 
 const POLICY_OPTIONS = [
@@ -167,6 +178,37 @@ export function AgentEditor({ agentId }: { agentId: string }) {
       ? form.policies.filter((p) => p !== policy)
       : [...form.policies, policy];
     updateDraft({ policies });
+  }
+
+  function updateModelSlot(
+    slot: 'primary' | 'fallback',
+    field: keyof AgentModelSlot,
+    raw: string,
+  ) {
+    if (!form || isReadOnlyPreview) return;
+    const current = form.models ?? {};
+    const slotConfig = { ...(current[slot] ?? {}) };
+
+    if (field === 'temperature') {
+      if (raw.trim() === '') {
+        delete slotConfig.temperature;
+      } else {
+        const parsed = Number(raw);
+        if (!Number.isNaN(parsed)) slotConfig.temperature = parsed;
+      }
+    } else if (raw.trim() === '') {
+      delete slotConfig[field];
+    } else {
+      slotConfig[field] = raw.trim();
+    }
+
+    const nextSlot = Object.keys(slotConfig).length > 0 ? slotConfig : undefined;
+    updateDraft({
+      models: {
+        ...current,
+        [slot]: nextSlot,
+      },
+    });
   }
 
   function loadVersionIntoEditor(version: AgentVersion, asRestore: boolean) {
@@ -326,6 +368,9 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-sm">{tool.qualifiedName}</span>
+                              {tool.custom ? (
+                                <span className="rounded bg-indigo-950 px-1.5 py-0.5 text-[10px] uppercase text-indigo-300">http</span>
+                              ) : null}
                               <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase ${tool.risk === 'risky' ? 'bg-amber-950 text-amber-300' : 'bg-emerald-950 text-emerald-300'}`}>
                                 {tool.risk === 'risky' ? 'approval' : 'read-only'}
                               </span>
@@ -390,6 +435,59 @@ export function AgentEditor({ agentId }: { agentId: string }) {
                   Default agent when no keywords match
                 </label>
               </div>
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-semibold">Models</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              Per-agent overrides. API keys and base URL come from the worker <code className="text-slate-400">.env</code> — leave fields blank to inherit.
+            </p>
+            <div className="space-y-6">
+              {(['primary', 'fallback'] as const).map((slot) => {
+                const slotConfig = form.models?.[slot] ?? {};
+                return (
+                  <div key={slot} className="rounded-lg border border-slate-800 p-4">
+                    <h3 className="mb-3 text-sm font-semibold capitalize text-slate-300">{slot}</h3>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <label className="block space-y-1">
+                        <span className="text-xs uppercase tracking-wide text-slate-500">Provider</span>
+                        <input
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                          placeholder="openai"
+                          value={slotConfig.provider ?? ''}
+                          disabled={isReadOnlyPreview}
+                          onChange={(e) => updateModelSlot(slot, 'provider', e.target.value)}
+                        />
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-xs uppercase tracking-wide text-slate-500">Model</span>
+                        <input
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                          placeholder="gemini-3-flash"
+                          value={slotConfig.model ?? ''}
+                          disabled={isReadOnlyPreview}
+                          onChange={(e) => updateModelSlot(slot, 'model', e.target.value)}
+                        />
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-xs uppercase tracking-wide text-slate-500">Temperature</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={2}
+                          step={0.1}
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                          placeholder="0"
+                          value={slotConfig.temperature ?? ''}
+                          disabled={isReadOnlyPreview}
+                          onChange={(e) => updateModelSlot(slot, 'temperature', e.target.value)}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Card>
 

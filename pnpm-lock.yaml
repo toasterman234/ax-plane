@@ -32,12 +32,24 @@ importers:
       '@axplane/agents':
         specifier: workspace:*
         version: link:../../packages/agents
+      '@axplane/ax-adapter':
+        specifier: workspace:*
+        version: link:../../packages/ax-adapter
       '@axplane/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@axplane/eval':
+        specifier: workspace:*
+        version: link:../../packages/eval
       '@axplane/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@axplane/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
+      '@axplane/host-tools':
+        specifier: workspace:*
+        version: link:../../packages/host-tools
       '@axplane/router':
         specifier: workspace:*
         version: link:../../packages/router
@@ -124,6 +136,9 @@ importers:
       '@axplane/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@axplane/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
       '@axplane/runtime-dev':
         specifier: workspace:*
         version: link:../../packages/runtime-dev
@@ -177,6 +192,9 @@ importers:
       '@axplane/host-tools':
         specifier: workspace:*
         version: link:../host-tools
+      '@axplane/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@axplane/policy':
         specifier: workspace:*
         version: link:../policy
@@ -190,12 +208,21 @@ importers:
 
   packages/db:
     dependencies:
+      '@axplane/eval':
+        specifier: workspace:*
+        version: link:../eval
       '@axplane/events':
         specifier: workspace:*
         version: link:../events
+      '@axplane/graph':
+        specifier: workspace:*
+        version: link:../graph
       '@axplane/host-tools':
         specifier: workspace:*
         version: link:../host-tools
+      '@axplane/memory':
+        specifier: workspace:*
+        version: link:../memory
       drizzle-orm:
         specifier: ^0.38.4
         version: 0.38.4(@opentelemetry/api@1.9.1)(@types/react@19.2.17)(postgres@3.4.9)(react@19.2.7)
@@ -219,6 +246,19 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)
 
+  packages/eval:
+    dependencies:
+      '@axplane/events':
+        specifier: workspace:*
+        version: link:../events
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
   packages/events:
     dependencies:
       zod:
@@ -232,11 +272,36 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)
 
+  packages/graph:
+    dependencies:
+      '@axplane/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@axplane/events':
+        specifier: workspace:*
+        version: link:../events
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
   packages/host-tools:
     devDependencies:
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
+  packages/memory:
+    devDependencies:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

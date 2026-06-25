@@ -33,7 +33,8 @@ export function evaluatePolicy(invocation: ToolInvocation): PolicyResult {
     || name === 'fake.riskyAction'
     || name === 'repo.writeFile'
     || name === 'shell.run'
-    || name.startsWith('github.create');
+    || name.startsWith('github.create')
+    || name.startsWith('http.');
 
   if (risky) {
     return {

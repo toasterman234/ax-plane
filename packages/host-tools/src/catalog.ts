@@ -1,5 +1,9 @@
 export type HostToolRisk = 'safe' | 'risky';
 
+export type ToolExecutionContext = {
+  customTools?: HostToolDefinition[];
+};
+
 export type HostToolDefinition = {
   qualifiedName: string;
   namespace: string;
@@ -7,6 +11,12 @@ export type HostToolDefinition = {
   description: string;
   risk: HostToolRisk;
   parameters: Record<string, unknown>;
+  http?: {
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH';
+    urlTemplate: string;
+    headers?: Record<string, string>;
+    bodyTemplate?: string;
+  };
 };
 
 export const HOST_TOOL_CATALOG: HostToolDefinition[] = [
@@ -227,14 +237,63 @@ export const HOST_TOOL_CATALOG: HostToolDefinition[] = [
       required: ['command'],
     },
   },
+  {
+    qualifiedName: 'memory.save',
+    namespace: 'memory',
+    name: 'save',
+    description: 'Persist a durable fact or decision for recall in future runs.',
+    risk: 'safe',
+    parameters: {
+      type: 'object',
+      properties: {
+        content: { type: 'string', description: 'Fact or decision to remember' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Optional topic tags' },
+        scope: { type: 'string', enum: ['agent', 'global'], description: 'agent (default) or global workspace memory' },
+      },
+      required: ['content'],
+    },
+  },
+  {
+    qualifiedName: 'memory.search',
+    namespace: 'memory',
+    name: 'search',
+    description: 'Search saved memories relevant to a query.',
+    risk: 'safe',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string' },
+        limit: { type: 'number' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    qualifiedName: 'memory.list',
+    namespace: 'memory',
+    name: 'list',
+    description: 'List recent memories visible to this agent (agent-scoped plus global).',
+    risk: 'safe',
+    parameters: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number' },
+      },
+    },
+  },
 ];
 
-export function getHostToolDefinition(qualifiedName: string): HostToolDefinition | undefined {
-  return HOST_TOOL_CATALOG.find((tool) => tool.qualifiedName === qualifiedName);
+export function getHostToolDefinition(
+  qualifiedName: string,
+  customTools: HostToolDefinition[] = [],
+): HostToolDefinition | undefined {
+  return customTools.find((tool) => tool.qualifiedName === qualifiedName)
+    ?? HOST_TOOL_CATALOG.find((tool) => tool.qualifiedName === qualifiedName);
 }
 
-export function listHostToolsForAgent(toolNames: string[]): HostToolDefinition[] {
+export function listHostToolsForAgent(toolNames: string[], customTools: HostToolDefinition[] = []) {
+  const customByName = new Map(customTools.map((tool) => [tool.qualifiedName, tool]));
   return toolNames
-    .map((name) => getHostToolDefinition(name))
+    .map((name) => customByName.get(name) ?? getHostToolDefinition(name))
     .filter((tool): tool is HostToolDefinition => Boolean(tool));
 }

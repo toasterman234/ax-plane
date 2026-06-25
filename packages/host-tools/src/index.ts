@@ -8,6 +8,8 @@ import {
   githubSearchIssues,
 } from './github';
 import { getHostToolDefinition } from './catalog';
+import type { HostToolDefinition, ToolExecutionContext } from './catalog';
+import { executeHttpTool } from './http-tool';
 import { repoListFiles, repoReadFile, repoSearch, repoWriteFile } from './repo';
 import { shellRun } from './shell';
 
@@ -23,7 +25,16 @@ function fakeRiskyAction(args: Record<string, unknown>) {
   return { ok: true, fakeSideEffect: 'approved-risky-action-executed', received: args };
 }
 
-export async function executeHostTool(qualifiedName: string, args: Record<string, unknown>): Promise<unknown> {
+export async function executeHostTool(
+  qualifiedName: string,
+  args: Record<string, unknown>,
+  ctx: ToolExecutionContext = {},
+): Promise<unknown> {
+  const custom = ctx.customTools?.find((tool) => tool.qualifiedName === qualifiedName);
+  if (custom?.namespace === 'http') {
+    return executeHttpTool(custom, args);
+  }
+
   switch (qualifiedName) {
     case 'fake.projectLookup':
       return fakeProjectLookup(args as { query: string });
@@ -58,9 +69,12 @@ export async function executeHostTool(qualifiedName: string, args: Record<string
   }
 }
 
-export function defaultToolRisk(qualifiedName: string): 'safe' | 'risky' {
-  return getHostToolDefinition(qualifiedName)?.risk ?? 'safe';
+export function defaultToolRisk(qualifiedName: string, ctx: ToolExecutionContext = {}): 'safe' | 'risky' {
+  return getHostToolDefinition(qualifiedName, ctx.customTools)?.risk ?? 'safe';
 }
 
+export type { ToolExecutionContext } from './catalog';
+export * from './custom-tool';
+export * from './http-tool';
 export * from './catalog';
 export { repoRoot, docsRoot } from './paths';

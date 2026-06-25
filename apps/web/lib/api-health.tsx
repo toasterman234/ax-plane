@@ -22,7 +22,10 @@ export function useApiHealth() {
   return useQuery({
     queryKey: ['api-health', API_URL],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/health`, { cache: 'no-store' });
+      const res = await fetch(`${API_URL}/health`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5_000),
+      });
       if (!res.ok) throw new Error(`API health ${res.status}`);
       const data = (await res.json()) as Health;
       if (data.service !== 'axplane-api') {

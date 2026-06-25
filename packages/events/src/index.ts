@@ -15,6 +15,17 @@ export const ControlEventTypeSchema = z.enum([
   'ax.function_call.approval_required',
   'ax.function_call.completed',
   'ax.function_call.reused',
+  'ax.model.resolved',
+  'memory.injected',
+  'memory.saved',
+  'graph.started',
+  'graph.step.queued',
+  'graph.step.started',
+  'graph.step.completed',
+  'graph.handoff',
+  'graph.completed',
+  'graph.failed',
+  'graph.resumed',
   'ax.chat_log.captured',
   'ax.usage.captured',
   'ax.traces.captured',
@@ -61,6 +72,7 @@ export type CreateRequest = z.infer<typeof CreateRequestSchema>;
 export const CreateRunSchema = z.object({
   requestId: z.string().uuid(),
   agentId: z.string().min(1).optional(),
+  workflowId: z.string().min(1).optional(),
 });
 export type CreateRun = z.infer<typeof CreateRunSchema>;
 

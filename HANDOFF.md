@@ -1,8 +1,9 @@
 # AxPlane MVP — Agent Handoff
 
-**Repo:** `ax-lab/axplane/`  
+**Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-25  
+**Last commit:** `6d0ca04` (Steps B–H) — **large uncommitted diff** on disk (Step I + I-lite below)
 
 ---
 
@@ -13,25 +14,19 @@
 - **Ax** = agent/runtime layer (signatures, tool calling, RLM pipeline, telemetry)
 - **AxPlane** = control plane (requests, runs, policy, approvals, durable event log, dashboard)
 
-**Architectural rule:** The UI never calls Ax. The web app → API → worker → `@axplane/ax-adapter` → Postgres events → SSE → dashboard.
+**Architectural rule:** The UI never calls Ax. Flow is:
+
+```txt
+web → API → worker → @axplane/ax-adapter → guardedHostTool → Postgres events → SSE → dashboard
+```
+
+**Graph rule (DECISIONS 0007):** Multi-agent workflows are **control-plane child runs** with handoffs — not in-process ax `agent()` child loops.
 
 ---
 
 ## 2. What works (validated)
 
-### Core loop (Phases 0–5)
-
-| Step | Status |
-|------|--------|
-| Postgres schema + `run_events` timeline | ✅ |
-| Hono API + SSE live stream | ✅ |
-| Worker polling + Ax adapter | ✅ |
-| Next.js dashboard (Requests, Runs, Approvals, Agents) | ✅ |
-| Mock mode (no API key) | ✅ |
-| Real Ax mode via cliproxy | ✅ |
-| Approval gate + resume without full rerun | ✅ |
-
-### Post-MVP steps completed in this session
+### Core loop (Phases 0–5 + Steps A–H)
 
 | Step | Deliverable | Status |
 |------|-------------|--------|
@@ -39,19 +34,43 @@
 | **B** | Structured run detail UI | ✅ |
 | **C** | Real Ax mode (`native` + `rlm`) | ✅ |
 | **D** | Approval resume (`run.resumed`, idempotent tools) | ✅ |
-| **E** | Read-only host tools (`repo.*`, `docs.search`, `github.read*`, etc.) | ✅ |
-| **F** | Approval-gated write tools (`repo.writeFile`, `shell.run`, `github.create*`) | ✅ |
-| **G** | Agent config editor (`/agents/:id`, version history) | ✅ |
-| **H** | Request router (keyword / default / explicit / override) | ✅ |
+| **E** | Read-only host tools | ✅ |
+| **F** | Approval-gated write tools | ✅ |
+| **G** | Agent config editor + version history | ✅ |
+| **H** | Request router (keyword / default / explicit) | ✅ |
 
-### Test status
+### Step I-lite (uncommitted)
+
+| Slice | Deliverable | Status |
+|-------|-------------|--------|
+| **I-lite-a** | `POST /agents`, duplicate agent, create-agent UI | ✅ |
+| **I-lite-b** | Per-agent `models.primary` / `fallback`, Models card in editor | ✅ |
+| **I-lite-c** | `custom_tools` table, HTTP tools (`http.{name}`), `/tools` page | ✅ |
+
+### Step I proper (uncommitted)
+
+| Slice | Deliverable | Status |
+|-------|-------------|--------|
+| **Memory kernel** | `memory_entries` table, `memory.save` / `search` / `list`, auto-inject at run start (`memory.injected`), `/memory` UI, agent `memory.kernelInject` + `memory.injectLimit` | ✅ |
+| **Eval lab** | `eval_suites` / `eval_cases` / `eval_runs`, deterministic scoring, `POST /eval/runs` (sync via `runAxAgent`), `/eval` UI, demo suite seed | ✅ |
+| **Graph workflows** | `graph_workflows` table, parent/child runs, `executeGraphRun`, approval pause/resume, `graph.*` events, `/workflows` UI, run detail **Graph steps** | ✅ |
+
+### Step I — not built yet
+
+- Scheduling (cron / delayed runs)
+- Multi-runtime adapters (thin `RuntimeAdapter`; Ax-only impl first, then governed `pi`)
+- LLM-based request routing (today: keyword + default + explicit only)
+
+### Test / build status (last run)
 
 ```bash
-pnpm typecheck   # green
-pnpm test        # ~29 tests, green (last run)
+pnpm db:migrate   # through 0004_graph_workflows.sql
+pnpm typecheck    # green
+pnpm test         # ~44 tests, green
+pnpm build        # green (do NOT run while next dev is up — see gotchas)
 ```
 
-Real-mode smoke (approval resume):
+Real-mode smoke:
 
 ```bash
 AXPLANE_EXECUTION_MODE=real pnpm --filter @axplane/ax-adapter exec tsx scripts/smoke-real.ts
@@ -62,31 +81,37 @@ AXPLANE_EXECUTION_MODE=real pnpm --filter @axplane/ax-adapter exec tsx scripts/s
 ## 3. How to run locally
 
 ```bash
-cd ~/Projects/ax-lab/axplane   # or external SSD path
+cd ~/Projects/ax-lab/axplane
 cp .env.example .env
 docker compose up -d           # Postgres on host port 5433
 pnpm install
 pnpm db:migrate
 pnpm db:seed                   # demo agent + sample request
-pnpm dev
+pnpm dev                       # api + worker + web (web defaults to 3010)
 ```
 
 **Open:**
 
 | Service | URL |
 |---------|-----|
-| Web | http://localhost:3000 (or **3010** if 3000 busy) |
+| Web | **http://localhost:3010** (default; ax-studio often owns 3000) |
 | API health | http://localhost:**8797**/health → `{"ok":true,"service":"axplane-api"}` |
 | cliproxy (real mode) | http://127.0.0.1:8317/v1 |
 
 **First-time UI checklist:**
 
-1. **Agents → Seed demo agent** (if list empty)
-2. **Requests → Submit** (router picks agent automatically)
-3. **Start run** on the request
-4. Run detail page streams events live
-5. When status = `needs_approval`, go to **Approvals → Approve**
-6. Run completes after worker resumes
+1. Confirm banner is clear (not red) — API + worker healthy
+2. **Agents → Seed demo agent** (if list empty)
+3. **Requests → Submit** (router picks agent)
+4. **Start run** on the request
+5. Run detail streams events live over SSE
+6. When `needs_approval` → **Approvals → Approve** → worker resumes
+
+**Graph demo checklist:**
+
+1. `POST /workflows/seed-demo` or **Workflows → Seed demo workflow**
+2. Pick a request → **Start workflow run**
+3. Open parent run → **Graph steps** shows child runs (`lookup`, `summarize`)
 
 ---
 
@@ -98,9 +123,9 @@ pnpm dev
 AXPLANE_EXECUTION_MODE=mock
 ```
 
-Deterministic demo — no LLM key. Good for UI/worker/event testing.
+Deterministic demo — no LLM key. Mock runner only invokes tools listed on the agent config (graph demo agents avoid always hitting `fake.riskyAction`).
 
-### Real (current `.env` on Ben's machine)
+### Real (Ben's machine)
 
 ```env
 AXPLANE_EXECUTION_MODE=real
@@ -119,19 +144,30 @@ Use `AXPLANE_REAL_STRATEGY=rlm` for the `agent()` JS-runtime pipeline (optional)
 ```txt
 apps/web          Next.js dashboard
 apps/api          Hono API + SSE (/runs/:id/stream)
-apps/worker       Polls queued runs, executes via ax-adapter
+apps/worker       Polls queued runs; graph parent runs execute child runs inline
 
-packages/db       Drizzle schema, repositories, migrations
+packages/db       Drizzle schema, repositories, migrations 0000–0004
 packages/events   Event taxonomy + Zod schemas
 packages/policy   allow / block / approval_required
-packages/host-tools   repo, docs, github, shell implementations
-packages/agents   YAML config, tool descriptors, routing fields
+packages/host-tools   repo, docs, github, shell, custom HTTP tools
+packages/agents   YAML config, tool descriptors, routing, models, templates
 packages/router   Request classification (keyword / default / explicit)
 packages/runtime-dev   Dev worker lock + heartbeat for health checks
-packages/ax-adapter   mock + real Ax runner, guardedHostTool, resume
+packages/ax-adapter   mock + real Ax runner, guardedHostTool, resume, memory inject
+packages/memory   Scoring, kernel inject, memory.* tool execution
+packages/eval     Deterministic eval scoring + suite runner
+packages/graph    Workflow defs, template resolution, executeGraphRun
 ```
 
-**Packages added after initial scaffold:** `host-tools`, `router`
+**DB migrations:**
+
+| File | Adds |
+|------|------|
+| `0000_fat_sumo.sql` | Core schema |
+| `0001_custom_tools.sql` | `custom_tools` |
+| `0002_memory_entries.sql` | `memory_entries` |
+| `0003_eval_lab.sql` | Eval tables |
+| `0004_graph_workflows.sql` | `graph_workflows`, `runs.parent_run_id`, `step_key`, `run_kind` |
 
 ---
 
@@ -140,17 +176,23 @@ packages/ax-adapter   mock + real Ax runner, guardedHostTool, resume
 | Area | Path |
 |------|------|
 | Demo agent YAML | `packages/agents/config/demo-agent.yaml` |
+| Agent models / templates | `packages/agents/src/models.ts`, `templates.ts` |
 | Agent editor UI | `apps/web/app/agents/[id]/agent-editor.tsx` |
-| Request router UI | `apps/web/app/requests/page.tsx` |
+| Tools UI | `apps/web/app/tools/page.tsx` |
+| Memory UI | `apps/web/app/memory/page.tsx` |
+| Eval UI | `apps/web/app/eval/page.tsx` |
+| Workflows UI | `apps/web/app/workflows/page.tsx` |
 | Run detail UI | `apps/web/app/runs/[id]/run-detail.tsx` |
 | API server | `apps/api/src/server.ts` |
 | Worker | `apps/worker/src/worker.ts` |
 | Ax adapter | `packages/ax-adapter/src/index.ts` |
-| Tool builder | `packages/ax-adapter/src/build-functions.ts` |
-| Guarded tools | `packages/ax-adapter/src/guarded-tool.ts` |
-| Host tool catalog | `packages/host-tools/src/catalog.ts` |
+| Memory inject | `packages/ax-adapter/src/memory-context.ts` |
+| Graph executor | `packages/graph/src/executor.ts` |
+| Demo graph workflow | `packages/graph/src/bundled.ts` |
+| Eval scoring | `packages/eval/src/scoring.ts` |
 | Router logic | `packages/router/src/index.ts` |
 | DB repositories | `packages/db/src/repositories.ts` |
+| API health banner | `apps/web/lib/api-health.tsx` |
 
 ---
 
@@ -158,13 +200,34 @@ packages/ax-adapter   mock + real Ax runner, guardedHostTool, resume
 
 ```txt
 GET    /health
+
 GET    /tools
+POST   /tools
+DELETE /tools/:qualifiedName
+
+GET    /memory
+POST   /memory
+
+GET    /eval/suites
+POST   /eval/suites
+POST   /eval/suites/seed-demo
+GET    /eval/suites/:id
+GET    /eval/runs
+GET    /eval/runs/:id
+POST   /eval/runs
+
+GET    /workflows
+POST   /workflows/seed-demo
+GET    /workflows/:id
+
 GET    /agents
+POST   /agents
+POST   /agents/seed-demo
 GET    /agents/:id
 GET    /agents/:id/versions
 PATCH  /agents/:id
 POST   /agents/:id/versions
-POST   /agents/seed-demo
+POST   /agents/:id/duplicate
 
 GET    /requests
 GET    /requests/:id
@@ -172,8 +235,9 @@ POST   /requests                    # auto-route; optional agentId, autoStart
 POST   /requests/:id/route
 
 GET    /runs
-POST   /runs                        # agentId optional
-GET    /runs/:id
+POST   /runs                        # { requestId, agentId? } or { requestId, workflowId }
+GET    /runs/:id                    # includes children[] for graph parents
+GET    /runs/:id/children
 GET    /runs/:id/events
 GET    /runs/:id/stream
 POST   /runs/:id/cancel
@@ -189,17 +253,41 @@ POST   /approvals/:id/reject
 
 ### Port 8787 is Kilroy, not AxPlane
 
-On Ben's machine, **8787 = Kilroy** (`{"pipelines":0,"status":"ok"}`). AxPlane API defaults to **8797**.
+On Ben's machine, **8787 = Kilroy**. AxPlane API defaults to **8797**.
 
 - Root `.env`: `API_PORT=8797`, `NEXT_PUBLIC_API_URL=http://localhost:8797`
 - Web: `apps/web/.env.local` must match (Next.js does not read root `.env` for `NEXT_PUBLIC_*`)
 
-**Symptom:** Submit does nothing, no approvals, no errors.  
+**Symptom:** Submit does nothing, banner red or stuck.  
 **Fix:** Restart web after `.env.local` change; confirm `8797/health` returns `"service":"axplane-api"`.
 
-### Port 3000 often busy
+### Web port 3000 vs 3010
 
-Web may fail with `EADDRINUSE`. Use `pnpm --filter @axplane/web exec next dev -p 3010` or kill the other process.
+**ax-studio** often owns **3000**. Web dev now defaults to **3010** (`WEB_PORT` in `.env.example`, `apps/web/package.json`).
+
+If `pnpm dev` shows `EADDRINUSE :::3000`, web may have exited while api/worker keep running — UI looks broken or missing.
+
+```bash
+WEB_PORT=3010 pnpm --filter @axplane/web dev
+# or rely on new default after pull
+```
+
+### White UI + stuck on "Checking API…"
+
+Two common causes (often together):
+
+1. **Stale `.next`** after `pnpm build` while `next dev` was running → CSS 404 → all white, unstyled page
+2. **API not running** → health banner hangs (now has 5s timeout) or shows red error
+
+**Fix:**
+
+```bash
+pkill -f "axplane/apps/web"    # or kill :3010
+rm -rf apps/web/.next
+pnpm dev                       # or restart api + worker + web separately
+```
+
+Hard-refresh browser (Cmd+Shift+R) on **http://localhost:3010**.
 
 ### Postgres on 5433
 
@@ -207,7 +295,7 @@ Host 5432 in use → docker-compose maps to **5433**. Match `DATABASE_URL` in `.
 
 ### Only one worker
 
-Multiple `pnpm dev:worker` / `pnpm dev` instances cause duplicate run processing and event seq collisions. Kill extras:
+Multiple `pnpm dev` / `pnpm dev:worker` instances cause duplicate processing and event seq collisions.
 
 ```bash
 pkill -f "axplane/apps/worker"
@@ -215,31 +303,23 @@ pkill -f "axplane/apps/api"
 pnpm dev   # one instance only
 ```
 
-Worker now uses **atomic claim** (`claimQueuedRun`) to prevent double-processing.
+Worker uses **atomic claim** (`claimQueuedRun`). Child graph runs are **not** independently queued (`parent_run_id IS NOT NULL` excluded from poll).
 
 ### Tool name collisions → HTTP 400 in real mode
 
-Cliproxy/Gemini rejects duplicate bare function names across namespaces (e.g. `repo.readFile` + `github.readFile` both named `readFile`).
+Cliproxy/Gemini rejects duplicate bare function names. **Fixed:** LLM-facing names are `repo_readFile`, etc. Policy/DB still use qualified names (`repo.readFile`).
 
-**Fixed in** `packages/ax-adapter/src/build-functions.ts`: LLM-facing names are `repo_readFile`, `github_readFile`, etc. Policy/DB still use qualified names (`repo.readFile`).
+### Graph runs and approvals
 
-### Approvals empty until a run pauses
+If a **child** step hits `needs_approval`, the **parent** graph run pauses. After approve/reject on the child, worker calls `resumeGraphRunAfterApproval` to continue the graph.
 
-Submit alone does not create approvals. Flow: **Submit → Start run → worker hits risky tool → `needs_approval` → Approvals page**.
+### Eval demo suite
 
-Use request text with routing keywords: `approval`, `fake`, `risky`, `plan`.
-
-### SSE live updates
-
-API omits custom SSE `event:` field so browser `EventSource.onmessage` works.
-
-### Signature field name
-
-Ax rejects generic `request` in signatures. Use **`taskText`** everywhere.
+Seeded `Demo smoke` suite may have old cases in DB if seeded before mock-tool fix. Re-seed or edit cases — case 1 should use safe-tool criteria (not `fake.riskyAction` unless testing approval).
 
 ### Uncommitted work
 
-Steps B–H shipped in commit after handoff checklist (see git log).
+Everything after Step H (I-lite, memory, eval, graph, web port fix, health timeout) is **on disk but not committed**. Commit to `ax-lab` when ready — not `ben-agents3`.
 
 ---
 
@@ -247,85 +327,94 @@ Steps B–H shipped in commit after handoff checklist (see git log).
 
 **Demo agent ID:** `demo_ax_agent`
 
-**14 tools** in catalog — all wired through `guardedHostTool` → policy → `executeHostTool`.
+**Graph demo agents:** `graph_lookup_agent`, `graph_summarize_agent` (seeded via `POST /workflows/seed-demo`)
 
-**Agent editor:** `/agents/demo_ax_agent` — edit tools, policies, routing keywords; save creates new DB version.
+**Agent editor:** `/agents/:id` — tools, policies, routing keywords, per-agent models, memory inject settings.
 
-**Router keywords** (demo agent defaults): `approval`, `plan`, `demo`, `fake`, `risky` + `isDefault: true`.
+**Router keywords** (demo defaults): `approval`, `plan`, `demo`, `fake`, `risky` + `isDefault: true`.
 
-Configure per-agent in editor **Routing** section.
-
----
-
-## 10. What's next (not built)
-
-From original roadmap **Step I** — defer until G+H feel solid:
-
-- Memory kernel
-- Eval lab
-- Scheduling
-- Graph topology / multi-agent workflows
-- Multi-runtime adapters
-- LLM-based request routing (currently keyword + default only)
-
-Smaller useful next steps:
-
-- [x] Commit Steps B–H + handoff
-- [x] `pnpm build` verification
-- [x] Worker health / single-instance guard in dev
-- [x] Filter approvals page to `?status=pending` by default
-- [x] Show API error banner on all pages (currently Requests + Approvals)
+**Memory:** Agents can set `memory.kernelInject: true` and `memory.injectLimit`. Kernel searches `memory_entries` at run start and emits `memory.injected`.
 
 ---
 
-## 11. Troubleshooting quick reference
+## 10. Troubleshooting quick reference
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Submit silent / no requests | Wrong API port (8787 = Kilroy) | Use 8797, restart web |
+| All white, no sidebar styling | Stale `.next`, CSS 404 | `rm -rf apps/web/.next`, restart web on 3010 |
+| Stuck "Checking API…" | API down or wrong port | `pnpm dev:api` or full `pnpm dev`; use 8797 |
+| `pnpm dev` but no web | Port 3000 busy, web exited | Use 3010 default or `WEB_PORT=3010` |
+| Submit silent | Wrong API port (8787 = Kilroy) | Use 8797, restart web |
 | Red API banner | Stack not running | `pnpm dev` |
-| `Generate failed: HTTP 400` | Old tool naming bug (fixed) or cliproxy down | Pull latest `build-functions.ts`; check cliproxy |
+| `Generate failed: HTTP 400` | cliproxy down or old tool naming | Check cliproxy; pull latest adapter |
 | Run `failed` instantly | Multiple workers / DB seq race | Kill extra workers, retry |
-| Approvals empty | No run reached risky tool | Start run; wait for `needs_approval` |
-| Runs stay `queued` | Worker crashed | Check worker logs; `pnpm dev:worker` |
-| Real mode slow | cliproxy + gemini reasoning tokens | Normal; smoke test can take minutes |
+| Approvals empty | No run reached risky tool | Start run; use approval keywords |
+| Runs stay `queued` | Worker crashed | Check worker logs |
+| Graph parent stuck | Child needs approval | Approve child run; worker resumes graph |
+| Real mode slow | cliproxy + gemini | Normal |
 
 ---
 
-## 12. Manual test script (happy path)
+## 11. Manual test scripts
+
+### Happy path (single agent)
 
 ```bash
-# 1. Health
 curl http://localhost:8797/health
-
-# 2. Seed
 curl -X POST http://localhost:8797/agents/seed-demo
-
-# 3. Submit (auto-routed)
 curl -X POST http://localhost:8797/requests \
   -H 'Content-Type: application/json' \
   -d '{"body":"Create a plan and use the fake risky tool for approval testing."}'
+# POST /runs with requestId → poll → approve → completed
+```
 
-# 4. Start run (paste request id)
+### Graph workflow
+
+```bash
+curl -X POST http://localhost:8797/workflows/seed-demo
 curl -X POST http://localhost:8797/runs \
   -H 'Content-Type: application/json' \
-  -d '{"requestId":"<REQUEST_ID>"}'
+  -d '{"requestId":"<REQUEST_ID>","workflowId":"demo_lookup_summarize"}'
+curl http://localhost:8797/runs/<PARENT_RUN_ID>
+curl http://localhost:8797/runs/<PARENT_RUN_ID>/children
+```
 
-# 5. Poll run until needs_approval
-curl http://localhost:8797/runs/<RUN_ID>
+### Memory
 
-# 6. Approve
-curl http://localhost:8797/approvals
-curl -X POST http://localhost:8797/approvals/<APPROVAL_ID>/approve
+```bash
+curl -X POST http://localhost:8797/memory \
+  -H 'Content-Type: application/json' \
+  -d '{"key":"demo","content":"Operator prefers terse summaries.","tags":["preference"]}'
+curl 'http://localhost:8797/memory?limit=10'
+```
 
-# 7. Confirm completed
-curl http://localhost:8797/runs/<RUN_ID>
+### Eval
+
+```bash
+curl -X POST http://localhost:8797/eval/suites/seed-demo
+curl -X POST http://localhost:8797/eval/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"suiteId":"<SUITE_ID>","agentId":"demo_ax_agent"}'
 ```
 
 ---
 
-## 13. Session summary for next agent
+## 12. Session summary for next agent
 
-You inherit a **working MVP control plane** with mock + real Ax, host tools, agent editor, and request router. The main operational hazards on Ben's machine are **port conflicts** (8787 Kilroy, 3000 busy) and **stale multi-worker processes**. Code fixes for tool-name 400s and worker claiming are in place but the stack must be restarted cleanly.
+You inherit a **working MVP control plane** through **Step I** (memory, eval, graph) plus **I-lite** (agent CRUD, per-agent models, HTTP custom tools). All of that is **uncommitted** since `6d0ca04`.
 
-Start here: read this file → `README.md` → confirm `8797/health` → `pnpm dev` → walk the happy path in §12.
+**Operational hazards on Ben's machine:**
+
+- **8797** not 8787 (Kilroy)
+- **3010** not 3000 (ax-studio)
+- **Stale `.next`** → white broken UI
+- **Multiple workers** → run failures
+
+**Suggested next work (pick one):**
+
+1. **Commit** Step I + I-lite to `ax-lab`
+2. **Multi-runtime adapters** — `RuntimeAdapter` interface, Ax impl only; wire worker through it
+3. **Scheduling** — delayed/cron run enqueue
+4. **LLM routing** — replace keyword-only router with optional model-based classification
+
+**Start here:** read this file → `README.md` → `pnpm db:migrate` → confirm `8797/health` → open **http://localhost:3010** → walk §11 happy path.

@@ -13,6 +13,7 @@
     "@axplane/db": "workspace:*",
     "@axplane/agents": "workspace:*",
     "@axplane/ax-adapter": "workspace:*",
+    "@axplane/graph": "workspace:*",
     "@axplane/runtime-dev": "workspace:*"
   },
   "devDependencies": {

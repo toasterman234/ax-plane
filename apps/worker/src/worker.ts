@@ -1,6 +1,7 @@
 import { getDemoAgentConfig, parseAgentConfigJson } from '@axplane/agents';
 import { makeDatabase, createRepositories } from '@axplane/db';
 import { runAxAgent } from '@axplane/ax-adapter';
+import { executeGraphRun, isGraphRun, resumeGraphRunAfterApproval } from '@axplane/graph';
 import {
   WorkerAlreadyRunningError,
   acquireWorkerLock,
@@ -12,6 +13,7 @@ const { db } = makeDatabase();
 const repo = createRepositories(db);
 const pollMs = Number(process.env.WORKER_POLL_MS ?? 1500);
 const executionMode = process.env.AXPLANE_EXECUTION_MODE ?? 'mock';
+const executionModeTyped = executionMode === 'real' ? 'real' : 'mock';
 
 try {
   acquireWorkerLock();
@@ -51,9 +53,34 @@ async function loadAgentConfigForRun(run: Awaited<ReturnType<typeof repo.listQue
   return getDemoAgentConfig();
 }
 
+async function maybeResumeParentGraph(childRun: Awaited<ReturnType<typeof repo.getRun>>) {
+  if (!childRun?.parentRunId) return;
+  const parent = await repo.getRun(childRun.parentRunId);
+  if (!parent || !isGraphRun(parent.inputJson) || parent.status !== 'needs_approval') return;
+
+  await resumeGraphRunAfterApproval({
+    repo,
+    parentRunId: parent.id,
+    mode: executionModeTyped,
+    runAgent: runAxAgent,
+    parseAgentConfig: parseAgentConfigJson,
+  });
+}
+
 async function processRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[number]) {
   const claimed = await repo.claimQueuedRun(run.id);
   if (!claimed) return;
+
+  if (isGraphRun(claimed.inputJson) || claimed.runKind === 'graph') {
+    await executeGraphRun({
+      repo,
+      parentRunId: claimed.id,
+      mode: executionModeTyped,
+      runAgent: runAxAgent,
+      parseAgentConfig: parseAgentConfigJson,
+    });
+    return;
+  }
 
   const config = await loadAgentConfigForRun(claimed);
   const input = (claimed.inputJson ?? {}) as { taskText?: string; request?: string };
@@ -63,7 +90,11 @@ async function processRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[n
     agentConfig: config,
     input: { taskText },
     repo,
+    mode: executionModeTyped,
   });
+
+  const refreshedChild = await repo.getRun(claimed.id);
+  await maybeResumeParentGraph(refreshedChild);
 }
 
 async function tick() {

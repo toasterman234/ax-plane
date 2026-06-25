@@ -5,18 +5,51 @@ import yaml from 'js-yaml';
 import { HOST_TOOL_CATALOG } from '@axplane/host-tools';
 import {
   AgentConfigSchema,
+  AgentIdSchema,
   AgentMetadataUpdateSchema,
+  CreateAgentSchema,
+  DuplicateAgentSchema,
   KNOWN_POLICIES,
   SaveAgentVersionSchema,
   parseAgentConfigJson,
   type AgentConfig,
   type AgentMetadataUpdate,
+  type CreateAgentInput,
+  type DuplicateAgentInput,
   type SaveAgentVersionInput,
   type ToolDescriptor,
 } from './schema';
 
-export { AgentConfigSchema, AgentMetadataUpdateSchema, SaveAgentVersionSchema, KNOWN_POLICIES, parseAgentConfigJson };
-export type { AgentConfig, AgentMetadataUpdate, SaveAgentVersionInput, ToolDescriptor };
+export {
+  AgentConfigSchema,
+  AgentIdSchema,
+  AgentMetadataUpdateSchema,
+  CreateAgentSchema,
+  DuplicateAgentSchema,
+  KNOWN_POLICIES,
+  SaveAgentVersionSchema,
+  parseAgentConfigJson,
+};
+export type {
+  AgentConfig,
+  AgentMetadataUpdate,
+  CreateAgentInput,
+  DuplicateAgentInput,
+  SaveAgentVersionInput,
+  ToolDescriptor,
+} from './schema';
+export {
+  AgentModelConfigSchema,
+  AgentModelsSchema,
+  normalizeAgentModels,
+  hasAgentModelOverride,
+} from './models';
+export type { AgentModelConfig, AgentModels, NormalizedAgentModels } from './models';
+export {
+  STARTER_READ_ONLY_TOOLS,
+  buildStarterAgentConfig,
+  cloneAgentConfigForDuplicate,
+} from './templates';
 
 export function loadAgentConfig(filePath = path.resolve(process.cwd(), 'packages/agents/config/demo-agent.yaml')): AgentConfig {
   const raw = fs.readFileSync(filePath, 'utf8');
@@ -46,6 +79,26 @@ export function getDemoAgentConfig(): AgentConfig {
     contextFields: ['taskText'],
     tools: HOST_TOOL_CATALOG.map((tool) => tool.qualifiedName),
     policies: ['write_tool_requires_approval'],
+  });
+}
+
+export function buildDemoTemplateAgentConfig(input: {
+  id: string;
+  name: string;
+  description?: string;
+}): AgentConfig {
+  const demo = getDemoAgentConfig();
+  return AgentConfigSchema.parse({
+    ...demo,
+    id: input.id,
+    name: input.name,
+    description: input.description ?? demo.description,
+    tools: HOST_TOOL_CATALOG.map((tool) => tool.qualifiedName),
+    routing: {
+      ...demo.routing,
+      keywords: [...(demo.routing?.keywords ?? [])],
+      isDefault: false,
+    },
   });
 }
 

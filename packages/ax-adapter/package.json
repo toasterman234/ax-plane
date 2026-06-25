@@ -15,6 +15,7 @@
     "@axplane/db": "workspace:*",
     "@axplane/events": "workspace:*",
     "@axplane/host-tools": "workspace:*",
+    "@axplane/memory": "workspace:*",
     "@axplane/policy": "workspace:*"
   },
   "devDependencies": {

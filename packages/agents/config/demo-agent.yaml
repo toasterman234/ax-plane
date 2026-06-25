@@ -1,6 +1,6 @@
 id: demo_ax_agent
 name: Demo Ax Agent
-description: AxPlane demo agent with read-only host tools and approval-gated write tools.
+description: AxPlane demo agent with read-only host tools, persistent memory, and approval-gated write tools.
 runtime: ax
 mode: rlm
 signature: "taskText:string \"the user task\" -> answer:string, nextActions:string[]"
@@ -24,12 +24,15 @@ tools:
   - github.createPR
   - docs.search
   - shell.run
+  - memory.save
+  - memory.search
+  - memory.list
 policies:
   - default_allow
   - write_tool_requires_approval
   - block_secret_exfiltration
 models:
-  default:
+  primary:
     provider: openai
     model: gpt-4o-mini
 routing:
@@ -41,3 +44,6 @@ routing:
     - risky
   priority: 0
   isDefault: true
+memory:
+  kernelInject: true
+  injectLimit: 5

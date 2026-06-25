@@ -13,6 +13,10 @@ export const metadata: Metadata = {
 const nav = [
   ['/', 'Home'],
   ['/agents', 'Agents'],
+  ['/tools', 'Tools'],
+  ['/memory', 'Memory'],
+  ['/eval', 'Eval'],
+  ['/workflows', 'Workflows'],
   ['/requests', 'Requests'],
   ['/runs', 'Runs'],
   ['/approvals', 'Approvals'],
