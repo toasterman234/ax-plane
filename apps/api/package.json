@@ -12,6 +12,7 @@
   "dependencies": {
     "@axplane/db": "workspace:*",
     "@axplane/events": "workspace:*",
+    "@axplane/flow-canvas": "workspace:*",
     "@axplane/host-tools": "workspace:*",
     "@axplane/agents": "workspace:*",
     "@axplane/ax-adapter": "workspace:*",

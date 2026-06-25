@@ -26,6 +26,12 @@ export const ControlEventTypeSchema = z.enum([
   'graph.completed',
   'graph.failed',
   'graph.resumed',
+  'axflow.started',
+  'axflow.step.started',
+  'axflow.step.completed',
+  'axflow.step.detail',
+  'axflow.completed',
+  'axflow.failed',
   'ax.chat_log.captured',
   'ax.usage.captured',
   'ax.traces.captured',
@@ -73,6 +79,8 @@ export const CreateRunSchema = z.object({
   requestId: z.string().uuid(),
   agentId: z.string().min(1).optional(),
   workflowId: z.string().min(1).optional(),
+  axFlowId: z.string().min(1).optional(),
+  flowInput: z.string().optional(),
 });
 export type CreateRun = z.infer<typeof CreateRunSchema>;
 

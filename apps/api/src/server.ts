@@ -33,7 +33,12 @@ import {
   metricsFromEvalRun,
   type LabRepository,
 } from '@axplane/lab';
-import { BUNDLED_GRAPH_WORKFLOW, BUNDLED_WORKFLOW_AGENTS } from '@axplane/graph';
+import {
+  BUNDLED_GRAPH_WORKFLOW,
+  BUNDLED_WORKFLOW_AGENTS,
+  CreateGraphWorkflowSchema,
+} from '@axplane/graph';
+import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase } from '@axplane/flow-canvas';
 import type { HostToolDefinition } from '@axplane/host-tools';
 
 const CreateHttpToolSchema = z.object({
@@ -103,12 +108,25 @@ async function classifyRequest(body: string, explicitAgentId?: string) {
   });
 }
 
-app.get('/health', (c) => {
+app.get('/health', async (c) => {
   const worker = readWorkerHealth(Number(process.env.WORKER_HEARTBEAT_STALE_MS ?? 10_000));
+  const axUrls = resolveAxEngineConfig();
+  let axEngine: { reachable: boolean; flowCount: number; url: string } = {
+    reachable: false,
+    flowCount: 0,
+    url: axUrls.axServerUrl,
+  };
+  try {
+    const flows = await fetchAllFlowEntries();
+    axEngine = { reachable: flows.length > 0, flowCount: flows.length, url: axUrls.axServerUrl };
+  } catch {
+    // ax-server optional — AxPlane runs without it
+  }
   return c.json({
     ok: true,
     service: 'axplane-api',
     worker,
+    axEngine,
     router: {
       mode: resolveRouterMode(),
       executionMode: process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock',
@@ -320,7 +338,86 @@ app.post('/eval/runs', async (c) => {
   return c.json({ ...result, evalRun }, 201);
 });
 
+app.get('/ax-flows', async (c) => {
+  const flows = await fetchAllFlowEntries();
+  return c.json({
+    flows,
+    engineReachable: flows.length > 0,
+    axServerUrl: process.env.AX_SERVER_URL ?? 'http://127.0.0.1:8810',
+  });
+});
+
+app.get('/ax-flows/:id/runs', async (c) => {
+  try {
+    const runs = await fetchEngineRuns(c.req.param('id'));
+    return c.json({ runs });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Failed to list engine runs', runs: [] }, 502);
+  }
+});
+
+app.get('/ax-flows/:id', async (c) => {
+  const entry = await fetchFlowEntryById(c.req.param('id'));
+  if (!entry) {
+    return c.json({ error: `Flow not found or ax-server unreachable: ${c.req.param('id')}` }, 404);
+  }
+  return c.json(entry);
+});
+
+app.get('/ax-engine/runs/:runId', async (c) => {
+  const flowId = c.req.query('flow');
+  const run = await fetchEngineRun(c.req.param('runId'), typeof flowId === 'string' ? flowId : undefined);
+  if (!run) return c.json({ error: 'Engine run not found' }, 404);
+  return c.json(run);
+});
+
+const AxEngineFlowRunSchema = z.object({
+  flowId: z.string().min(1),
+  input: z.string().min(1),
+});
+
+app.post('/ax-engine/flow-run', async (c) => {
+  const body = AxEngineFlowRunSchema.parse(await c.req.json());
+  const base = resolveFlowServerBase(body.flowId);
+  const upstream = await fetch(`${base}/flow/${encodeURIComponent(body.flowId)}?stream=1`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ input: body.input }),
+  });
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => '');
+    return c.json({ error: text || `Engine flow run failed (${upstream.status})` }, 502);
+  }
+  return new Response(upstream.body, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
+});
+
 app.get('/workflows', async (c) => c.json(await repo.listGraphWorkflows()));
+
+app.post('/workflows', async (c) => {
+  const payload = CreateGraphWorkflowSchema.parse(await c.req.json());
+  await repo.ensureGraphOrchestratorAgent();
+
+  for (const step of payload.steps) {
+    const agent = await repo.getAgent(step.agentId);
+    if (!agent) {
+      return c.json({ error: `Agent not found for step "${step.id}": ${step.agentId}` }, 400);
+    }
+  }
+
+  const workflow = await repo.upsertGraphWorkflow({
+    id: payload.id,
+    name: payload.name,
+    description: payload.description,
+    steps: payload.steps,
+  });
+  return c.json(workflow, 201);
+});
 
 async function seedBundledWorkflowHandler(c: Context) {
   await repo.ensureGraphOrchestratorAgent();
@@ -686,6 +783,17 @@ app.post('/runs', async (c) => {
       requestId: payload.requestId,
       workflowId: payload.workflowId,
       taskText: request.body,
+    });
+    return c.json(run, 201);
+  }
+
+  if (payload.axFlowId) {
+    const entry = await fetchFlowEntryById(payload.axFlowId);
+    if (!entry) return c.json({ error: `Ax flow not found or engine unreachable: ${payload.axFlowId}` }, 404);
+    const run = await repo.createAxFlowRun({
+      requestId: payload.requestId,
+      flowId: payload.axFlowId,
+      flowInput: payload.flowInput?.trim() || request.body,
     });
     return c.json(run, 201);
   }

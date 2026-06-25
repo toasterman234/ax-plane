@@ -17,6 +17,7 @@ const nav = [
   ['/memory', 'Memory'],
   ['/eval', 'Eval'],
   ['/workflows', 'Workflows'],
+  ['/ax-flows', 'AX Flows'],
   ['/requests', 'Requests'],
   ['/runs', 'Runs'],
   ['/approvals', 'Approvals'],

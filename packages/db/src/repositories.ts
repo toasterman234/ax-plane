@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { ControlEventType, RunStatus } from '@axplane/events';
 import type { EvalCriterion } from '@axplane/eval';
 import { GRAPH_ORCHESTRATOR_AGENT_ID, parseWorkflowSteps } from '@axplane/graph';
+import { AX_FLOW_ORCHESTRATOR_AGENT_ID } from '@axplane/flow-canvas';
 import type { MemoryEntry } from '@axplane/memory';
 import { rankMemoryEntries } from '@axplane/memory';
 import type { Database } from './client';
@@ -841,6 +842,45 @@ export function createRepositories(db: Database) {
         requestId: input.requestId,
         workflowId: input.workflowId,
         runKind: 'graph',
+      });
+      return run!;
+    },
+
+    async ensureAxFlowOrchestratorAgent() {
+      await db
+        .insert(agents)
+        .values({
+          id: AX_FLOW_ORCHESTRATOR_AGENT_ID,
+          name: 'AxFlow orchestrator',
+          description: 'Control-plane ax-llm flow() runner (proxies ax-server).',
+        })
+        .onConflictDoNothing();
+    },
+
+    async createAxFlowRun(input: { requestId: string; flowId: string; flowInput: string }) {
+      await this.ensureAxFlowOrchestratorAgent();
+      const [request] = await db.select().from(requests).where(eq(requests.id, input.requestId)).limit(1);
+      if (!request) throw new Error(`Request not found: ${input.requestId}`);
+
+      const [run] = await db
+        .insert(runs)
+        .values({
+          requestId: input.requestId,
+          agentId: AX_FLOW_ORCHESTRATOR_AGENT_ID,
+          runKind: 'axflow',
+          status: 'queued',
+          inputJson: {
+            runKind: 'axflow',
+            flowId: input.flowId,
+            flowInput: input.flowInput,
+          },
+        })
+        .returning();
+
+      await appendRunEvent(run!.id, 'run.queued', {
+        requestId: input.requestId,
+        flowId: input.flowId,
+        runKind: 'axflow',
       });
       return run!;
     },

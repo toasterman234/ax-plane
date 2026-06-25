@@ -6,15 +6,14 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { WorkflowBuilder, type WorkflowDraft } from './workflow-builder';
+import { WorkflowCanvasPanel } from './workflow-canvas-panel';
 
-type Workflow = {
-  id: string;
-  name: string;
-  description: string;
-  steps: Array<{ id: string; agentId: string; inputTemplate: string }>;
-};
+type Workflow = WorkflowDraft;
 
 type RequestRow = { id: string; body: string; agentId: string };
+
+type AgentRow = { id: string; name: string; enabled: boolean };
 
 export default function WorkflowsPage() {
   const [message, setMessage] = useState<string | null>(null);
@@ -23,11 +22,42 @@ export default function WorkflowsPage() {
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [starting, setStarting] = useState(false);
   const [lastRunId, setLastRunId] = useState<string | null>(null);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [builderInitial, setBuilderInitial] = useState<WorkflowDraft | null>(null);
 
   const workflows = useQuery({ queryKey: ['workflows'], queryFn: () => api<Workflow[]>('/workflows') });
   const requests = useQuery({ queryKey: ['requests'], queryFn: () => api<RequestRow[]>('/requests') });
+  const agents = useQuery({ queryKey: ['agents'], queryFn: () => api<AgentRow[]>('/agents') });
 
   const activeWorkflowId = selectedWorkflowId || workflows.data?.[0]?.id || '';
+  const activeWorkflow = workflows.data?.find((w) => w.id === activeWorkflowId) ?? null;
+
+  function openNewBuilder() {
+    setBuilderInitial(null);
+    setShowBuilder(true);
+    setError(null);
+    setMessage(null);
+  }
+
+  function openEditBuilder(workflow: Workflow) {
+    setBuilderInitial({
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    });
+    setShowBuilder(true);
+    setError(null);
+    setMessage(null);
+  }
+
+  function handleWorkflowSaved(workflow: Workflow) {
+    setShowBuilder(false);
+    setBuilderInitial(null);
+    setSelectedWorkflowId(workflow.id);
+    setMessage(`Workflow saved: ${workflow.name} (${workflow.steps.length} steps)`);
+    void workflows.refetch();
+  }
 
   async function seedDemo() {
     setMessage(null);
@@ -66,7 +96,7 @@ export default function WorkflowsPage() {
       <div>
         <h1 className="text-2xl font-bold">Workflows</h1>
         <p className="text-slate-400">
-          Control-plane graph runs spawn child agent runs with handoffs — no in-process ax child loops.
+          Control-plane graph runs spawn child agent runs with handoffs — not in-process Ax child loops.
         </p>
       </div>
 
@@ -76,37 +106,88 @@ export default function WorkflowsPage() {
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Definitions</h2>
-          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemo}>Install sample workflow</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="bg-slate-800 text-white hover:bg-slate-700"
+              onClick={() => (showBuilder ? setShowBuilder(false) : openNewBuilder())}
+            >
+              {showBuilder ? 'Close builder' : 'New workflow'}
+            </Button>
+            <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemo}>
+              Install sample workflow
+            </Button>
+          </div>
         </div>
         {(workflows.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No workflows yet. Install the sample workflow for a two-step lookup → summarize graph.</p>
+          <p className="text-sm text-slate-500">
+            No workflows yet. Build one below, or install the sample lookup → summarize graph.
+          </p>
         ) : (
           <div className="space-y-2">
             {workflows.data?.map((workflow) => (
-              <button
+              <div
                 key={workflow.id}
-                type="button"
-                onClick={() => setSelectedWorkflowId(workflow.id)}
-                className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
+                className={`rounded-md border px-3 py-2 text-sm ${
                   workflow.id === activeWorkflowId ? 'border-sky-700 bg-sky-950/20' : 'border-slate-800'
                 }`}
               >
-                <div className="font-medium">{workflow.name}</div>
-                <div className="text-slate-400">{workflow.description}</div>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWorkflowId(workflow.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="font-medium">{workflow.name}</div>
+                    <div className="text-slate-400">{workflow.description || workflow.id}</div>
+                  </button>
+                  <Button
+                    type="button"
+                    className="shrink-0 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    onClick={() => openEditBuilder(workflow)}
+                  >
+                    Edit
+                  </Button>
+                </div>
                 <ol className="mt-2 list-decimal pl-5 text-xs text-slate-500">
                   {workflow.steps.map((step) => (
                     <li key={step.id}>{step.id} → {step.agentId}</li>
                   ))}
                 </ol>
-              </button>
+              </div>
             ))}
           </div>
         )}
       </Card>
 
+      <WorkflowCanvasPanel workflow={activeWorkflow} />
+
+      {showBuilder ? (
+        <WorkflowBuilder
+          key={builderInitial?.id ?? 'new'}
+          agents={agents.data ?? []}
+          initial={builderInitial}
+          onSaved={handleWorkflowSaved}
+        />
+      ) : null}
+
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Start graph run</h2>
         <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-sm text-slate-300">
+            Workflow
+            <select
+              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+              value={activeWorkflowId}
+              onChange={(e) => setSelectedWorkflowId(e.target.value)}
+            >
+              <option value="">Select a workflow</option>
+              {(workflows.data ?? []).map((workflow) => (
+                <option key={workflow.id} value={workflow.id}>
+                  {workflow.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="text-sm text-slate-300">
             Request
             <select
@@ -122,11 +203,11 @@ export default function WorkflowsPage() {
               ))}
             </select>
           </label>
-          <div className="flex items-end">
-            <Button onClick={startWorkflowRun} disabled={starting || !activeWorkflowId || !selectedRequestId}>
-              {starting ? 'Starting…' : 'Start workflow run'}
-            </Button>
-          </div>
+        </div>
+        <div>
+          <Button onClick={startWorkflowRun} disabled={starting || !activeWorkflowId || !selectedRequestId}>
+            {starting ? 'Starting…' : 'Start workflow run'}
+          </Button>
         </div>
         {lastRunId ? (
           <p className="text-sm text-slate-400">

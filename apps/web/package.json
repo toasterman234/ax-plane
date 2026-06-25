@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@axplane/flow-canvas": "workspace:*",
     "@tanstack/react-query": "^5.64.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",

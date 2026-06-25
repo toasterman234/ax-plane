@@ -14,6 +14,7 @@
     "@axplane/agents": "workspace:*",
     "@axplane/ax-adapter": "workspace:*",
     "@axplane/graph": "workspace:*",
+    "@axplane/flow-canvas": "workspace:*",
     "@axplane/runtime": "workspace:*",
     "@axplane/runtime-dev": "workspace:*"
   },

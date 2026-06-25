@@ -16,6 +16,7 @@ type Health = {
   service?: string;
   status?: string;
   worker?: WorkerHealth;
+  axEngine?: { reachable: boolean; flowCount: number; url: string };
 };
 
 export function useApiHealth() {

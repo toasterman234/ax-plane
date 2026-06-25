@@ -7,6 +7,8 @@ export {
   type GraphStepOutput,
 } from './types';
 export { resolveInputTemplate } from './template';
+export { CreateGraphWorkflowSchema, GraphWorkflowIdSchema, GraphWorkflowStepSchema } from './schema';
+export type { CreateGraphWorkflowInput } from './schema';
 export {
   BUNDLED_GRAPH_WORKFLOW,
   BUNDLED_WORKFLOW_AGENTS,

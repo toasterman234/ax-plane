@@ -2,8 +2,8 @@
 
 **Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
-**Last updated:** 2026-06-25  
-**Last commit:** `eabc445` — LLM routing + Agent Lab + runtime layer
+**Last updated:** 2026-06-25 (flow-canvas + governed axflow proxy)  
+**Last commit:** *(pending — flow-canvas package, `/ax-flows`, axflow worker)*
 
 ---
 
@@ -19,6 +19,8 @@
 ```txt
 web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedHostTool → Postgres events → SSE → dashboard
 ```
+
+**Pi is out of scope.** AxPlane stays a separate Ax-only control plane. Ben's governed pi stack (`~/Projects/pi`, agent-runner, ben-agents3) is a different runtime boundary — do not wire `piRuntimeAdapter` or merge MCP/subagent surfaces from pi here.
 
 **Graph rule (DECISIONS 0007):** Multi-agent workflows are **control-plane child runs** with handoffs — not in-process ax `agent()` child loops.
 
@@ -53,7 +55,9 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 |-------|-------------|--------|
 | **Memory kernel** | `memory_entries` table, `memory.save` / `search` / `list`, auto-inject at run start (`memory.injected`), `/memory` UI | ✅ |
 | **Eval lab** | `eval_suites` / `eval_cases` / `eval_runs`, deterministic scoring, `/eval` UI | ✅ |
-| **Graph workflows** | `graph_workflows`, parent/child runs, `executeGraphRun`, `/workflows` UI | ✅ |
+| **Graph workflows** | `graph_workflows`, parent/child runs, `executeGraphRun`, `/workflows` UI + **builder**, `POST /workflows` upsert | ✅ |
+| **Flow canvas** | `@axplane/flow-canvas`, graph + axflow overlays on run detail, `/workflows` topology panel | ✅ |
+| **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
 
 ### Agent Lab
 
@@ -67,11 +71,30 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 | Slice | Deliverable | Status |
 |-------|-------------|--------|
 | **`@axplane/runtime`** | `RuntimeAdapter`, `runAgentForConfig`, Ax impl, worker/API wired | ✅ |
-| **Governed `pi` runtime** | `piRuntimeAdapter` | ❌ (fails loud) |
+| **`pi` runtime** | **Out of scope** — `piRuntimeAdapter` stub fails loud by design; AxPlane stays Ax-only | 🚫 |
 
 ### Step I — not built yet
 
 - Scheduling (cron / delayed runs)
+- Graph **delete**, parallel steps, conditional edges, visual DAG editor → `docs/workflows-roadmap.md`
+
+### Ax surface vs axllm.dev
+
+> **Full grid:** `docs/ax-surface-map.md` — keep in sync with this table when capabilities change.
+
+| Surface | AxPlane |
+|---------|---------|
+| `ax()` structured generation | ✅ partial (native real mode) |
+| Tools `fn()` (host + HTTP) | ✅ |
+| MCP / `discover()` / `recall()` | ❌ (memory kernel + host tools instead) |
+| `agent()` RLM + `agent.optimize()` | ✅ (Agent Lab) |
+| Ax `flow()` / AxFlow | ⚠️ partial — governed proxy to ax-server (`runKind: axflow`); graph child runs for multi-agent |
+| Top-level `optimize()` / GEPA | ❌ |
+| Audio / multimodal / token streaming to UI | ❌ |
+| `AxBalancer` / OTel | ❌ |
+| Control plane (requests, approvals, SSE, eval) | ✅ AxPlane-only |
+
+**Pi runtime:** out of scope — separate from ben-agents3 / `~/Projects/pi`.
 
 ### Request routing
 
@@ -125,11 +148,13 @@ pnpm dev                       # api + worker + web (web defaults to 3010)
 5. Run detail streams events live over SSE
 6. When `needs_approval` → **Approvals → Approve** → worker resumes
 
-**Graph demo checklist:**
+**Graph workflow checklist:** see `docs/workflows.md` (builder + sample seed).
 
-1. `POST /workflows/seed-default` or **Workflows → Install sample workflow**
+1. **Workflows → New workflow** (or edit) **or** `POST /workflows/seed-default` for sample
 2. Pick a request → **Start workflow run**
 3. Open parent run → **Graph steps** shows child runs (`lookup`, `summarize`)
+
+**Roadmap:** delete / parallel / visual DAG → `docs/workflows-roadmap.md`
 
 ---
 
@@ -202,14 +227,15 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 | Tools UI | `apps/web/app/tools/page.tsx` |
 | Memory UI | `apps/web/app/memory/page.tsx` |
 | Eval UI | `apps/web/app/eval/page.tsx` |
-| Workflows UI | `apps/web/app/workflows/page.tsx` |
+| Workflows UI | `apps/web/app/workflows/page.tsx`, `workflow-builder.tsx` |
+| Workflow upsert schema | `packages/graph/src/schema.ts` |
 | Run detail UI | `apps/web/app/runs/[id]/run-detail.tsx` |
 | API server | `apps/api/src/server.ts` |
 | Worker | `apps/worker/src/worker.ts` |
 | Ax adapter | `packages/ax-adapter/src/index.ts` |
 | Memory inject | `packages/ax-adapter/src/memory-context.ts` |
 | Graph executor | `packages/graph/src/executor.ts` |
-| Demo graph workflow | `packages/graph/src/bundled.ts` |
+| Bundled sample workflow | `packages/graph/src/bundled.ts` (`lookup_summarize`) |
 | Eval scoring | `packages/eval/src/scoring.ts` |
 | Router logic | `packages/router/src/index.ts` |
 | DB repositories | `packages/db/src/repositories.ts` |
@@ -243,6 +269,7 @@ GET    /eval/runs/:id
 POST   /eval/runs
 
 GET    /workflows
+POST   /workflows                    # create/upsert workflow definition
 POST   /workflows/seed-default
 POST   /workflows/seed-demo              # deprecated alias
 GET    /workflows/:id
@@ -440,20 +467,37 @@ curl -X POST http://localhost:8797/eval/runs \
 
 ## 12. Session summary for next agent
 
-You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (mock + ax-native optimize), runtime adapters, and optional LLM routing. All shipped work is **committed and pushed** to `ax-lab` on `main` (through `eabc445`).
+You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (mock + ax-native optimize), runtime adapters, optional LLM routing, **linear graph workflows with builder UI**, and **governed axflow runs** (flow-canvas + `/ax-flows` proxy to ax-server `:8810`). Last pushed commit: see `git log -1`.
 
 **Operational hazards on Ben's machine:**
 
 - **8797** not 8787 (Kilroy)
 - **3010** not 3000 (ax-studio)
+- **8810** ax-server must be up for `/ax-flows` and `runKind: axflow`
 - **Stale `.next`** → white broken UI
 - **Multiple workers** → run failures
 
 **Suggested next work (pick one):**
 
-1. **Governed pi runtime** — implement `piRuntimeAdapter` against `~/Projects/pi`
+1. **Workflow Phase 1** — `DELETE /workflows/:id` + UI (`docs/workflows-roadmap.md`)
 2. **Scheduling** — delayed/cron run enqueue
+3. **Axflow polish** — approval gates, Requests-page queue, Langfuse overlay
 
-**Docs:** `HANDOFF.md`, `docs/agent-lab.md`, `docs/runtime-adapters.md`, `docs/router-llm.md`
+**Explicitly not planned:** governed pi runtime / pi MCP bridge — keep AxPlane separate from `~/Projects/pi`.
+
+### Documentation index (keep in sync)
+
+| Doc | Purpose |
+|-----|---------|
+| `HANDOFF.md` | Operator brief + status matrix (this file) |
+| `docs/ax-surface-map.md` | axllm.dev vs AxPlane — **full** capability grid |
+| `docs/workflows.md` | Current graph workflow behavior + API |
+| `docs/flow-canvas.md` | ax-studio canvas port + `/ax-flows` |
+| `docs/workflows-roadmap.md` | Delete / DAG v2 / parallel / visual plan |
+| `docs/agent-lab.md` | Agent Lab + optimize |
+| `docs/runtime-adapters.md` | Runtime facade; pi out of scope |
+| `docs/router-llm.md` | LLM request routing |
+
+**Sync rule:** When AxPlane gains or drops an Ax-surface capability, update **`docs/ax-surface-map.md`** and the **Ax surface** table in §2 above. When workflow executor/UI changes, update **`docs/workflows.md`**, **`docs/workflows-roadmap.md`**, and §2 Graph workflows row.
 
 **Start here:** read this file → `README.md` → `pnpm db:migrate` → confirm `8797/health` → open **http://localhost:3010** → walk §11 happy path.

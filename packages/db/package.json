@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@axplane/events": "workspace:*",
+    "@axplane/flow-canvas": "workspace:*",
     "@axplane/eval": "workspace:*",
     "@axplane/graph": "workspace:*",
     "@axplane/host-tools": "workspace:*",

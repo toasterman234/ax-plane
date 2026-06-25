@@ -16,7 +16,7 @@ worker / API eval & lab
 
 ```yaml
 runtime: ax   # default — uses @ax-llm/ax
-runtime: pi   # reserved — governed pi backend (future)
+runtime: pi   # reserved stub only — fails loud; pi integration is out of scope for AxPlane
 ```
 
 ## API
@@ -33,6 +33,6 @@ import { runAgentForConfig, getRuntimeAdapter } from '@axplane/runtime';
 2. Register in `factory.ts` `adapters` map.
 3. Add enum value to `AgentRuntimeSchema` in `@axplane/agents`.
 
-## PI runtime (future)
+## PI runtime (out of scope)
 
-`piRuntimeAdapter` throws until a governed `~/Projects/pi` bridge exists. Do not silently fall back to Ax.
+`piRuntimeAdapter` throws if `runtime: pi` is set. **AxPlane stays separate from the governed pi stack** (`~/Projects/pi`, ben-agents3). Do not plan MCP/subagent bridges through pi here.

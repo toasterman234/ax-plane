@@ -222,9 +222,11 @@ The UI never calls Ax directly. The worker runs agents through `@axplane/runtime
 
 ## Notes
 
-Still **not** implemented: **scheduling** (cron/delayed runs) and **governed pi runtime** (stub fails loud).
+Still **not** implemented: **scheduling** (cron/delayed runs); workflow **delete**, parallel branches, conditional edges, visual DAG editor (see `docs/workflows-roadmap.md`).
 
-Implemented since the original MVP scaffold: memory kernel, eval lab, graph workflows, Agent Lab, multi-runtime facade, LLM routing. See `HANDOFF.md` for the full status matrix.
+**Out of scope:** governed pi runtime — AxPlane is Ax-only; pi stays in ben-agents3 / agent-runner.
+
+Implemented since the original MVP scaffold: memory kernel, eval lab, graph workflows (builder + `POST /workflows`), Agent Lab, multi-runtime facade, LLM routing. See `HANDOFF.md` for the full status matrix; `docs/ax-surface-map.md` for axllm.dev coverage.
 
 ### Local validation status (2026-06-25)
 
