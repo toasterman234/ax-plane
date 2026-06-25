@@ -3,7 +3,7 @@
 **Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
 **Last updated:** 2026-06-25 (dispatcher proxy + flow-canvas)  
-**Last commit:** *(pending — dispatcher proxy)*
+**Last commit:** `b28b80f` — dispatcher proxy, /dispatcher UI
 
 ---
 
