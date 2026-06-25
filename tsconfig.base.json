@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@axplane/db": ["packages/db/src/index.ts"],
+      "@axplane/events": ["packages/events/src/index.ts"],
+      "@axplane/policy": ["packages/policy/src/index.ts"],
+      "@axplane/agents": ["packages/agents/src/index.ts"],
+      "@axplane/ax-adapter": ["packages/ax-adapter/src/index.ts"]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+id: demo_ax_agent
+name: Demo Ax Agent
+description: MVP demo agent with one safe lookup tool and one approval-gated fake risky tool.
+runtime: ax
+mode: rlm
+signature: "request:string -> answer:string, nextActions:string[]"
+contextFields:
+  - request
+contextPolicy:
+  preset: checkpointed
+  budget: balanced
+tools:
+  - fake.projectLookup
+  - fake.riskyAction
+policies:
+  - fake_risky_action_requires_approval
+models:
+  default:
+    provider: openai
+    model: gpt-4o-mini

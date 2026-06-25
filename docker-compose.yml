@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: axplane-postgres
+    environment:
+      POSTGRES_USER: axplane
+      POSTGRES_PASSWORD: axplane
+      POSTGRES_DB: axplane
+    ports:
+      - "5433:5432"
+    volumes:
+      - axplane_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U axplane -d axplane"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  axplane_pg:
