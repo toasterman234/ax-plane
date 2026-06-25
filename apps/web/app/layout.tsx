@@ -12,17 +12,10 @@ export const metadata: Metadata = {
 
 const nav = [
   ['/', 'Home'],
-  ['/themes', 'Theme lab'],
   ['/agents', 'Agents'],
-  ['/tools', 'Tools'],
-  ['/memory', 'Memory'],
-  ['/eval', 'Eval'],
   ['/workflows', 'Workflows'],
-  ['/ax-flows', 'AX Flows'],
-  ['/dispatcher', 'Dispatcher'],
-  ['/requests', 'Requests'],
-  ['/runs', 'Runs'],
-  ['/approvals', 'Approvals'],
+  ['/operations', 'Operations'],
+  ['/settings', 'Settings'],
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {

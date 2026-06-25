@@ -1,4 +1,6 @@
-# AxPlane MVP
+# Ax Plane
+
+Local-first control plane around [`@ax-llm/ax`](https://github.com/ax-llm/ax). MIT licensed.
 
 AxPlane is a local-first control plane around `@ax-llm/ax`. This MVP implements phases 0-5:
 
@@ -212,6 +214,7 @@ packages/router       -> keyword + optional LLM request routing
 packages/runtime      -> RuntimeAdapter facade (ax wired, pi stub)
 packages/ax-adapter   -> mock + real Ax runner, agent.optimize path
 packages/lab            -> Agent Lab workflow (optimize, compare, promote)
+packages/forge          -> Agent Forge intake, scaffold, eval seed, workflow
 packages/memory         -> kernel inject, memory.* tools
 packages/eval           -> eval suites + deterministic scoring
 packages/graph          -> control-plane child-run workflows
@@ -222,7 +225,7 @@ The UI never calls Ax directly. The worker runs agents through `@axplane/runtime
 
 ## Notes
 
-Still **not** implemented: **scheduling** (cron/delayed runs); workflow **delete**, parallel branches, conditional edges, visual DAG editor (see `docs/workflows-roadmap.md`).
+Still **not** implemented: **scheduling** (cron/delayed runs); workflow **delete**, parallel branches, conditional edges, visual DAG editor (see `docs/workflows-roadmap.md`). Agent Forge Phases 0–3 shipped; next optional work is Phase 4 (flows/GEPA) or Phase 5 (pi export brief).
 
 **Out of scope:** governed pi runtime — AxPlane is Ax-only; pi stays in ben-agents3 / agent-runner.
 

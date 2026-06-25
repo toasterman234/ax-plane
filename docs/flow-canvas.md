@@ -69,7 +69,7 @@ AX_SERVER_URL=http://127.0.0.1:8810
 - Canvas is **read-only** (show mode): it does not call `flow().forward()` in the browser.
 - **Governed `runKind: axflow` runs** proxy ax-server via the worker (`executeAxFlowRun`); `axflow.*` events land in Postgres and paint the same canvas on run detail.
 - AxPlane **graph workflows** remain child-run orchestration — their topology view is a visual map only, not in-process `flow()`.
-- **ax-studio** depends on `@axplane/flow-canvas` via `file:../../Projects/ax-lab/axplane/packages/flow-canvas`; studio canvas files are thin re-exports.
+- Downstream apps (e.g. ax-studio) can depend on `@axplane/flow-canvas` via git URL or npm once published.
 
 ## Smoke validation (2026-06-25)
 

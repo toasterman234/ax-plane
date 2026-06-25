@@ -47,6 +47,9 @@ importers:
       '@axplane/flow-canvas':
         specifier: workspace:*
         version: link:../../packages/flow-canvas
+      '@axplane/forge':
+        specifier: workspace:*
+        version: link:../../packages/forge
       '@axplane/graph':
         specifier: workspace:*
         version: link:../../packages/graph
@@ -314,6 +317,34 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
+  packages/forge:
+    dependencies:
+      '@ax-llm/ax':
+        specifier: ^22.0.7
+        version: 22.0.7(zod@3.25.76)
+      '@axplane/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@axplane/eval':
+        specifier: workspace:*
+        version: link:../eval
+      '@axplane/host-tools':
+        specifier: workspace:*
+        version: link:../host-tools
+      '@axplane/lab':
+        specifier: workspace:*
+        version: link:../lab
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

@@ -12,17 +12,17 @@ export default function HomePage() {
         <Card>
           <h2 className="font-semibold">1. Submit request</h2>
           <p className="mt-2 text-sm text-muted-foreground">Create an inbox request for the default agent.</p>
-          <Link className="mt-4 inline-block text-primary underline" href="/requests">Open Requests</Link>
+          <Link className="mt-4 inline-block text-primary underline" href="/operations/requests">Open Requests</Link>
         </Card>
         <Card>
           <h2 className="font-semibold">2. Watch run</h2>
           <p className="mt-2 text-sm text-muted-foreground">Open the run timeline and stream events live over SSE.</p>
-          <Link className="mt-4 inline-block text-primary underline" href="/runs">Open Runs</Link>
+          <Link className="mt-4 inline-block text-primary underline" href="/operations/runs">Open Runs</Link>
         </Card>
         <Card>
           <h2 className="font-semibold">3. Approve tool</h2>
           <p className="mt-2 text-sm text-muted-foreground">Approve the approval-gated tool and let the worker complete the run.</p>
-          <Link className="mt-4 inline-block text-primary underline" href="/approvals">Open Approvals</Link>
+          <Link className="mt-4 inline-block text-primary underline" href="/operations/approvals">Open Approvals</Link>
         </Card>
       </div>
     </div>

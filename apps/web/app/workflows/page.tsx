@@ -93,13 +93,6 @@ export default function WorkflowsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Workflows</h1>
-        <p className="text-muted-foreground">
-          Control-plane graph runs spawn child agent runs with handoffs — not in-process Ax child loops.
-        </p>
-      </div>
-
       {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
@@ -213,7 +206,7 @@ export default function WorkflowsPage() {
           <p className="text-sm text-muted-foreground">
             Watch the parent run on{' '}
             <Link href={`/runs/${lastRunId}`} className="text-sky-400 hover:underline">run detail</Link>
-            {' '}or browse all <Link href="/runs" className="text-sky-400 hover:underline">runs</Link>.
+            {' '}or browse all <Link href="/operations/runs" className="text-sky-400 hover:underline">runs</Link>.
           </p>
         ) : null}
       </Card>

@@ -40,6 +40,7 @@ import {
 } from '@axplane/graph';
 import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY } from '@axplane/flow-canvas';
 import type { HostToolDefinition } from '@axplane/host-tools';
+import { registerForgeRoutes, handleForgeRouteError } from './forge-routes';
 
 const CreateHttpToolSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{1,62}$/, 'Tool name must be lowercase slug (e.g. slack_notify)'),
@@ -79,6 +80,8 @@ app.use('*', cors({
 }));
 
 app.onError((err, c) => {
+  const forgeResponse = handleForgeRouteError(err, c);
+  if (forgeResponse) return forgeResponse;
   if (err instanceof z.ZodError) {
     return c.json({ error: 'Validation failed', issues: err.issues }, 400);
   }
@@ -756,6 +759,12 @@ app.post('/agents/:id/lab/candidates/:candidateId/reject', async (c) => {
 
   const rejected = await repo.updateAgentCandidate(candidateId, { status: 'rejected' });
   return c.json({ candidate: rejected });
+});
+
+registerForgeRoutes(app, {
+  repo,
+  runAgent: runAgentForConfig,
+  loadAgentConfig,
 });
 
 app.get('/requests', async (c) => c.json(await repo.listRequests()));

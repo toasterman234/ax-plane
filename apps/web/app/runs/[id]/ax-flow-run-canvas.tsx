@@ -73,7 +73,7 @@ export function AxFlowRunCanvasPanel({
       )}
       <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
         Proxied via AxPlane worker; events in run log as <code>axflow.*</code>. Engine history also on{' '}
-        <Link href="/ax-flows" className="text-sky-400 hover:underline">
+        <Link href="/workflows/ax-flows" className="text-sky-400 hover:underline">
           AX Flows
         </Link>
         .

@@ -203,6 +203,21 @@ export const agentCandidates = pgTable('agent_candidates', {
   agentIdx: index('agent_candidates_agent_idx').on(table.agentId, table.createdAt),
 }));
 
+export const forgeSessions = pgTable('forge_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  status: text('status').notNull().default('intake'),
+  intakeJson: jsonb('intake_json').notNull().default(sql`'{}'::jsonb`),
+  draftJson: jsonb('draft_json'),
+  draftMetaJson: jsonb('draft_meta_json'),
+  agentId: text('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  suiteId: uuid('suite_id').references(() => evalSuites.id, { onDelete: 'set null' }),
+  error: text('error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  statusIdx: index('forge_sessions_status_idx').on(table.status, table.createdAt),
+}));
+
 export const evalCases = pgTable('eval_cases', {
   id: uuid('id').primaryKey().defaultRandom(),
   suiteId: uuid('suite_id').notNull().references(() => evalSuites.id, { onDelete: 'cascade' }),

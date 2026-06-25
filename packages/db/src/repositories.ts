@@ -7,7 +7,7 @@ import type { MemoryEntry } from '@axplane/memory';
 import { rankMemoryEntries } from '@axplane/memory';
 import type { Database } from './client';
 import { hostDefinitionFromCustomToolRow, httpQualifiedName, type CustomHttpToolInput } from '@axplane/host-tools';
-import { agents, agentCandidates, agentVersions, approvals, customTools, evalCaseResults, evalCases, evalRuns, evalSuites, graphWorkflows, memoryEntries, modelUsage, optimizationRuns, requests, runEvents, runs, toolCalls } from './schema';
+import { agents, agentCandidates, agentVersions, approvals, customTools, evalCaseResults, evalCases, evalRuns, evalSuites, forgeSessions, graphWorkflows, memoryEntries, modelUsage, optimizationRuns, requests, runEvents, runs, toolCalls } from './schema';
 
 function memoryEntryFromRow(row: typeof memoryEntries.$inferSelect): MemoryEntry {
   return {
@@ -1080,6 +1080,58 @@ export function createRepositories(db: Database) {
         .from(agentCandidates)
         .where(eq(agentCandidates.agentId, agentId))
         .orderBy(desc(agentCandidates.createdAt));
+    },
+
+    async createForgeSession(input?: { intake?: Record<string, unknown> }) {
+      const [row] = await db
+        .insert(forgeSessions)
+        .values({
+          status: 'intake',
+          intakeJson: input?.intake ?? {},
+        })
+        .returning();
+      return row!;
+    },
+
+    async getForgeSession(id: string) {
+      const [row] = await db.select().from(forgeSessions).where(eq(forgeSessions.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async listForgeSessions(limit = 50) {
+      return db
+        .select()
+        .from(forgeSessions)
+        .orderBy(desc(forgeSessions.createdAt))
+        .limit(limit);
+    },
+
+    async updateForgeSession(
+      id: string,
+      patch: {
+        status?: string;
+        intakeJson?: Record<string, unknown>;
+        draftJson?: unknown;
+        draftMetaJson?: unknown;
+        agentId?: string | null;
+        suiteId?: string | null;
+        error?: string | null;
+      },
+    ) {
+      const values: Record<string, unknown> = { updatedAt: new Date() };
+      if (patch.status !== undefined) values.status = patch.status;
+      if (patch.intakeJson !== undefined) values.intakeJson = patch.intakeJson;
+      if (patch.draftJson !== undefined) values.draftJson = patch.draftJson;
+      if (patch.draftMetaJson !== undefined) values.draftMetaJson = patch.draftMetaJson;
+      if (patch.agentId !== undefined) values.agentId = patch.agentId;
+      if (patch.suiteId !== undefined) values.suiteId = patch.suiteId;
+      if (patch.error !== undefined) values.error = patch.error;
+      const [row] = await db
+        .update(forgeSessions)
+        .set(values)
+        .where(eq(forgeSessions.id, id))
+        .returning();
+      return row ?? null;
     },
   };
 }

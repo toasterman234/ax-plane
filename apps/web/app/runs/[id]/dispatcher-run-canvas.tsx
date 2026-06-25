@@ -57,7 +57,7 @@ export function DispatcherRunCanvasPanel({
       </div>
       <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
         Proxied via AxPlane worker; events in run log as <code>dispatcher.*</code>. Live runs on{' '}
-        <Link href="/dispatcher" className="text-sky-400 hover:underline">
+        <Link href="/workflows/dispatcher" className="text-sky-400 hover:underline">
           Dispatcher
         </Link>
         .

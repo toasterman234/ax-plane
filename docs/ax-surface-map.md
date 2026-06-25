@@ -96,6 +96,7 @@ Legend: ✅ shipped · ⚠️ partial / adjacent · ❌ not in AxPlane · N/A no
 | Agent registry + version history | ✅ |
 | Eval lab (deterministic scoring) | ✅ |
 | Agent Lab (compare, promote) | ✅ |
+| Agent Forge (intake → scaffold → eval seed → lab handoff) | ✅ v1 + Phase 3 — heuristic + `?strategy=llm`, `/agents/forge` UI |
 | Workflow builder UI (linear steps) | ✅ |
 | `POST /workflows` upsert | ✅ |
 | Scheduling (cron / delayed runs) | ❌ planned |

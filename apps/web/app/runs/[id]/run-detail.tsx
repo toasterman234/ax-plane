@@ -163,7 +163,7 @@ export function RunDetail({ runId }: { runId: string }) {
           <span className={`rounded-full border px-3 py-1 text-sm font-medium ${statusTone(status)}`}>{status}</span>
           {status === 'needs_approval' ? (
             <Link
-              href="/approvals"
+              href="/operations/approvals"
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               Review approvals

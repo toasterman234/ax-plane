@@ -1,0 +1,21 @@
+/* Scoped shadcn token utilities — only affect descendants of .theme-lab-preview */
+
+.theme-lab-preview {
+  --radius: 0.5rem;
+}
+
+.theme-lab-preview .rounded-lg {
+  border-radius: var(--radius);
+}
+
+.theme-lab-preview .rounded-xl {
+  border-radius: calc(var(--radius) + 4px);
+}
+
+.theme-lab-preview .rounded-md {
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.theme-lab-preview .rounded-full {
+  border-radius: 9999px;
+}

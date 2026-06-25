@@ -1,9 +1,8 @@
 # AxPlane MVP — Agent Handoff
 
-**Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
-**Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
-**Last updated:** 2026-06-25 (dispatcher proxy + flow-canvas)  
-**Last commit:** `b28b80f` — dispatcher proxy, /dispatcher UI
+**Repo:** [toasterman234/ax-plane](https://github.com/toasterman234/ax-plane) (public; extracted from private `ax-lab`)  
+**Last updated:** 2026-06-25 (flow-canvas + axflow + dispatcher proxy — full orchestration handoff)  
+**Last commit:** `fe64f78` — dispatcher proxy (`b28b80f`); flow-canvas (`8581375`)
 
 ---
 
@@ -22,7 +21,28 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 
 **Pi is out of scope.** AxPlane stays a separate Ax-only control plane. Ben's governed pi stack (`~/Projects/pi`, agent-runner, ben-agents3) is a different runtime boundary — do not wire `piRuntimeAdapter` or merge MCP/subagent surfaces from pi here.
 
-**Graph rule (DECISIONS 0007):** Multi-agent workflows are **control-plane child runs** with handoffs — not in-process ax `agent()` child loops.
+**Graph rule (DECISIONS 0007):** Multi-agent workflows are **control-plane child runs** with handoffs — not in-process ax `agent()` child loops **inside the AxPlane worker**.
+
+**Engine proxy rule (2026-06-25):** Dynamic Ax patterns (`flow()`, team dispatcher) run on **ax-sandbox ax-server** (`:8810`) and are **proxied** into AxPlane as governed runs (`runKind: axflow` / `axdispatcher`). AxPlane owns lifecycle + events; ax-server owns execution.
+
+### Three orchestration lanes
+
+| Lane | Ax pattern | AxPlane mechanism | UI |
+|------|------------|-------------------|-----|
+| **Fixed multi-agent** | Sequential specialists | Graph workflows → DB child runs | `/workflows` |
+| **Declarative DAG** | `flow()` / AxFlow | Worker proxies `POST /flow/:id?stream=1` | `/ax-flows` |
+| **Dynamic team** | RLM + `team.*` child agents | Worker proxies `POST /dispatcher?stream=1` | `/dispatcher` |
+
+Single-agent runs still use `@axplane/ax-adapter` (`native` or `rlm`) — not ax-server.
+
+### Related systems (do not conflate)
+
+| System | Role | Path |
+|--------|------|------|
+| **AxPlane** | Control plane (this repo) | `~/Projects/ax-plane` |
+| **ax-server** | Ax engine: flows + dispatcher | `~/ax/sandbox/agents/ax-server.ts` → `:8810` |
+| **AX Studio** | Cockpit UI; proxies `:8810` | `~/ax/studio` → `:3010` often conflicts with AxPlane web |
+| **ben-agents3** | pi / agent-runner; `ax-flow` assignment hits `:8810` directly | `~/ben-agents3` — **not** wired to AxPlane Postgres runs |
 
 ---
 
@@ -59,6 +79,7 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 | **Flow canvas** | `@axplane/flow-canvas`, graph + axflow overlays on run detail, `/workflows` topology panel | ✅ |
 | **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
 | **Dispatcher (governed)** | `runKind: axdispatcher`, worker → `/dispatcher` SSE, `dispatcher.*` events, `/dispatcher` UI + live run | ✅ |
+| **Agent Forge** | `@axplane/forge`, `/agents/forge` UI, `/forge/sessions/*` API — intake → heuristic/LLM scaffold → commit → optimize | ✅ |
 
 ### Agent Lab
 
@@ -108,7 +129,7 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 ### Test / build status (last run)
 
 ```bash
-pnpm db:migrate   # through 0005_agent_lab.sql
+pnpm db:migrate   # through 0006_forge_sessions.sql
 pnpm typecheck    # green
 pnpm test         # ~55 tests, green
 ```
@@ -124,7 +145,7 @@ AXPLANE_EXECUTION_MODE=real pnpm --filter @axplane/ax-adapter exec tsx scripts/s
 ## 3. How to run locally
 
 ```bash
-cd ~/Projects/ax-lab/axplane
+cd ~/Projects/ax-plane
 cp .env.example .env
 docker compose up -d           # Postgres on host port 5433
 pnpm install
@@ -144,7 +165,7 @@ pnpm dev                       # api + worker + web (web defaults to 3010)
 **First-time UI checklist:**
 
 1. Confirm banner is clear (not red) — API + worker healthy
-2. **Agents → Install default agent** (if list empty)
+2. **Agents → Install default agent** (if list empty) **or Forge →** build an agent end-to-end
 3. **Requests → Submit** (router picks agent)
 4. **Start run** on the request
 5. Run detail streams events live over SSE
@@ -157,6 +178,20 @@ pnpm dev                       # api + worker + web (web defaults to 3010)
 3. Open parent run → **Graph steps** shows child runs (`lookup`, `summarize`)
 
 **Roadmap:** delete / parallel / visual DAG → `docs/workflows-roadmap.md`
+
+**Ax flows checklist:** see `docs/flow-canvas.md`
+
+1. Ensure ax-server on **:8810** (`AX_SERVER_URL` in `.env`)
+2. **AX Flows** → pick a flow → **Run live** or **Queue governed run** (needs a Request)
+3. Governed: `POST /runs` with `{ requestId, axFlowId, flowInput? }` → `runKind: axflow`
+4. Run detail shows axflow topology overlay + `axflow.*` events
+
+**Dispatcher checklist:**
+
+1. ax-server `/health` must list `/dispatcher` in `routes`
+2. **Dispatcher** page → enter query → **Run live** or **Queue governed run**
+3. Governed: `POST /runs` with `{ requestId, useDispatcher: true, dispatcherQuery? }` → `runKind: axdispatcher`
+4. **Smoke tip:** use short queries (`"hey"`) — full RLM loops can run **minutes**
 
 ---
 
@@ -178,6 +213,7 @@ AXPLANE_REAL_STRATEGY=native
 AX_BASE_URL=http://127.0.0.1:8317/v1
 AX_API_KEY=sk-cliproxy
 AX_MODEL=gemini-3-flash
+AX_SERVER_URL=http://127.0.0.1:8810   # required for /ax-flows and /dispatcher
 ```
 
 Use `AXPLANE_REAL_STRATEGY=rlm` for the `agent()` JS-runtime pipeline (optional).
@@ -204,7 +240,23 @@ packages/lab        Agent Lab optimizer workflow + comparison
 packages/memory   Scoring, kernel inject, memory.* tool execution
 packages/eval     Deterministic eval scoring + suite runner
 packages/graph    Workflow defs, template resolution, executeGraphRun
+packages/flow-canvas   FlowSpec canvas, axflow + dispatcher proxy, trace overlays
 ```
+
+**Engine proxy flow (axflow / dispatcher):**
+
+```txt
+web → API (optional live SSE proxy) → worker → streamAxFlowRun / streamAxDispatcherRun → ax-server :8810
+                                              → Postgres dispatcher.* / axflow.* events → SSE dashboard
+```
+
+**Orchestrator agent IDs (not real Ax agents — DB placeholders):**
+
+| runKind | agentId | Worker entry |
+|---------|---------|--------------|
+| `graph` | `__graph__` | `executeGraphRun` |
+| `axflow` | `__axflow__` | `executeAxFlowRun` |
+| `axdispatcher` | `__axdispatcher__` | `executeAxDispatcherRun` |
 
 **DB migrations:**
 
@@ -216,6 +268,8 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 | `0003_eval_lab.sql` | Eval tables |
 | `0004_graph_workflows.sql` | `graph_workflows`, `runs.parent_run_id`, `step_key`, `run_kind` |
 | `0005_agent_lab.sql` | `optimization_runs`, `agent_candidates`, `eval_suites.agent_id` |
+| `0006_forge_sessions.sql` | `forge_sessions` (Agent Forge intake workflow) |
+| `0007_forge_draft_meta.sql` | `forge_sessions.draft_meta_json` (LLM scaffold audit) |
 
 ---
 
@@ -229,7 +283,15 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 | Tools UI | `apps/web/app/tools/page.tsx` |
 | Memory UI | `apps/web/app/memory/page.tsx` |
 | Eval UI | `apps/web/app/eval/page.tsx` |
-| Workflows UI | `apps/web/app/workflows/page.tsx`, `workflow-builder.tsx` |
+| Workflows UI | `apps/web/app/workflows/page.tsx`, `workflow-builder.tsx`, `workflow-canvas-panel.tsx` |
+| AX Flows UI | `apps/web/app/ax-flows/page.tsx`, `ax-flow-detail-panel.tsx` |
+| Dispatcher UI | `apps/web/app/dispatcher/page.tsx` |
+| Flow canvas package | `packages/flow-canvas/` (`@axplane/flow-canvas`) |
+| Axflow worker | `packages/flow-canvas/src/execute-ax-flow.ts` |
+| Dispatcher worker | `packages/flow-canvas/src/execute-dispatcher.ts` |
+| Graph run canvas | `apps/web/app/runs/[id]/graph-run-canvas.tsx` |
+| Axflow run canvas | `apps/web/app/runs/[id]/ax-flow-run-canvas.tsx` |
+| Dispatcher run canvas | `apps/web/app/runs/[id]/dispatcher-run-canvas.tsx` |
 | Workflow upsert schema | `packages/graph/src/schema.ts` |
 | Run detail UI | `apps/web/app/runs/[id]/run-detail.tsx` |
 | API server | `apps/api/src/server.ts` |
@@ -252,7 +314,16 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 ## 7. API endpoints (current)
 
 ```txt
-GET    /health                      # includes router.mode
+GET    /health                      # worker heartbeat + axEngine.reachable + dispatcherAvailable
+
+GET    /ax-flows
+GET    /ax-flows/:id/runs           # register BEFORE /ax-flows/:id
+GET    /ax-flows/:id
+GET    /ax-engine/runs/:runId?flow=
+POST   /ax-engine/flow-run          # SSE proxy to ax-server flow
+
+GET    /ax-dispatcher               # static team spec + availability
+POST   /ax-engine/dispatcher-run    # SSE proxy to ax-server /dispatcher
 
 GET    /tools
 POST   /tools
@@ -297,13 +368,24 @@ GET    /agents/:id/lab/comparison
 POST   /agents/:id/lab/candidates/:candidateId/promote
 POST   /agents/:id/lab/candidates/:candidateId/reject
 
+GET    /forge/sessions
+POST   /forge/sessions
+GET    /forge/sessions/:id
+PATCH  /forge/sessions/:id
+POST   /forge/sessions/:id/scaffold
+POST   /forge/sessions/:id/commit
+POST   /forge/sessions/:id/optimize
+
 GET    /requests
 GET    /requests/:id
 POST   /requests                    # auto-route; optional agentId, autoStart
 POST   /requests/:id/route
 
 GET    /runs
-POST   /runs                        # { requestId, agentId? } or { requestId, workflowId }
+POST   /runs                        # { requestId, agentId? }
+                                    # { requestId, workflowId }
+                                    # { requestId, axFlowId, flowInput? }
+                                    # { requestId, useDispatcher: true, dispatcherQuery? }
 GET    /runs/:id                    # includes children[] for graph parents
 GET    /runs/:id/children
 GET    /runs/:id/events
@@ -389,6 +471,22 @@ Seeded `Smoke` suite may have old cases in DB if seeded before mock-tool fix. Le
 
 Set `AXPLANE_ROUTER_MODE=hybrid` (or `llm`) in `.env` and restart API. Mock mode uses a deterministic classifier without API keys. See `docs/router-llm.md`.
 
+### ax-server dependency (`:8810`)
+
+`/ax-flows`, `/dispatcher`, and governed `axflow` / `axdispatcher` runs **require ax-server**. Without it:
+
+- `GET /health` → `axEngine.reachable: false`
+- Governed proxy runs fail at worker stream time
+- Live SSE proxies return 502
+
+**Symptom:** Dispatcher run stuck at `dispatcher.started` with no further events — usually ax-server hung, worker lost stream, or query triggered a long full RLM loop (wait or cancel).
+
+**Symptom:** Governed dispatcher smoke passes in ~20s with `"hey"` but not with long analytical queries — expected; not a bug.
+
+### Child agents in AxPlane worker
+
+AxPlane does **not** wire `agent({ functions: [childAgent, ...] })` in `@axplane/ax-adapter`. fuguLite-style teams are available via **dispatcher proxy**, not native in-process delegation. Graph workflows are the governed fixed-pipeline substitute.
+
 ---
 
 ## 9. Agent config & routing
@@ -419,6 +517,9 @@ Set `AXPLANE_ROUTER_MODE=hybrid` (or `llm`) in `.env` and restart API. Mock mode
 | Approvals empty | No run reached risky tool | Start run; use approval keywords |
 | Runs stay `queued` | Worker crashed | Check worker logs |
 | Graph parent stuck | Child needs approval | Approve child run; worker resumes graph |
+| `/ax-flows` empty | ax-server down | Start ax-server on 8810 |
+| Dispatcher unavailable | `buildDispatcher()` failed at ax-server startup | Check ax-server logs; `/health` routes |
+| Dispatcher run slow | Full RLM loop on ax-server | Normal for complex queries; use live SSE to watch |
 | Real mode slow | cliproxy + gemini | Normal |
 
 ---
@@ -465,27 +566,120 @@ curl -X POST http://localhost:8797/eval/runs \
   -d '{"suiteId":"<SUITE_ID>","agentId":"default_ax_agent"}'
 ```
 
+### Ax flow (governed)
+
+```bash
+REQ=$(curl -sf -X POST http://localhost:8797/requests \
+  -H 'Content-Type: application/json' \
+  -d '{"body":"smoke axflow","autoStart":false}')
+REQ_ID=$(echo "$REQ" | python3 -c "import json,sys; print(json.load(sys.stdin)['request']['id'])")
+curl -X POST http://localhost:8797/runs \
+  -H 'Content-Type: application/json' \
+  -d "{\"requestId\":\"$REQ_ID\",\"axFlowId\":\"research-router\",\"flowInput\":\"smoke test\"}"
+# poll GET /runs/:id until completed; expect axflow.* events
+```
+
+### Dispatcher (governed — use short query for smoke)
+
+```bash
+REQ=$(curl -sf -X POST http://localhost:8797/requests \
+  -H 'Content-Type: application/json' \
+  -d '{"body":"smoke dispatcher","autoStart":false}')
+REQ_ID=$(echo "$REQ" | python3 -c "import json,sys; print(json.load(sys.stdin)['request']['id'])")
+curl -X POST http://localhost:8797/runs \
+  -H 'Content-Type: application/json' \
+  -d "{\"requestId\":\"$REQ_ID\",\"useDispatcher\":true,\"dispatcherQuery\":\"hey\"}"
+# poll GET /runs/:id; expect dispatcher.route|status|completed
+```
+
+### Live SSE (no Postgres run)
+
+```bash
+curl -sN -X POST http://localhost:8797/ax-engine/flow-run \
+  -H 'content-type: application/json' \
+  -d '{"flowId":"research-router","input":"smoke"}' | head -20
+
+curl -sN -X POST http://localhost:8797/ax-engine/dispatcher-run \
+  -H 'content-type: application/json' \
+  -d '{"query":"hey"}' | head -10
+```
+
+### Agent Forge (API smoke)
+
+**Validated 2026-06-25** — create → scaffold → commit (baseline) → mock optimize → `session.status: done`.
+
+**Run from the axplane repo** (not `~` — home has a different `package.json` and `pnpm db:migrate` will fail):
+
+```bash
+cd ~/Projects/ax-plane
+pnpm db:migrate    # through 0007_forge_draft_meta.sql if needed
+pnpm dev           # api + worker + web
+```
+
+```bash
+SESSION=$(curl -sf -X POST http://localhost:8797/forge/sessions \
+  -H 'Content-Type: application/json' \
+  -d '{"intake":{"task":"Summarize repo docs","success":"Short bullets with paths","failure":"No shell or writes","tools":["read"]}}')
+SID=$(echo "$SESSION" | python3 -c "import json,sys; print(json.load(sys.stdin)['session']['id'])")
+AGENT_ID="forge_smoke_$(date +%s)"   # unique — commit returns 409 if agent id exists
+
+curl -sf -X POST "http://localhost:8797/forge/sessions/$SID/scaffold"
+curl -sf -X POST "http://localhost:8797/forge/sessions/$SID/commit" \
+  -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Forge Smoke Agent\",\"agentId\":\"$AGENT_ID\",\"runBaseline\":true}"
+curl -sf -X POST "http://localhost:8797/forge/sessions/$SID/optimize" \
+  -H 'Content-Type: application/json' \
+  -d '{"optimizerType":"ax-native-mock"}'
+
+# LLM scaffold (mock)
+curl -sf -X POST "http://localhost:8797/forge/sessions/$SID/scaffold?strategy=llm" \
+  -H 'Content-Type: application/json' \
+  -d '{"strategy":"llm","mode":"mock"}'
+```
+
+UI: **http://localhost:3010/agents/forge** (hard-refresh if styles break — delete `apps/web/.next` and restart web dev).
+
 ---
 
 ## 12. Session summary for next agent
 
-You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (mock + ax-native optimize), runtime adapters, optional LLM routing, **linear graph workflows with builder UI**, **governed axflow runs**, and **governed dispatcher proxy** (team RLM via ax-server `:8810`). Last pushed commit: see `git log -1`.
+### What landed (2026-06-25)
+
+1. **`@axplane/flow-canvas`** — ax-studio canvas port; graph / axflow / dispatcher trace overlays
+2. **Axflow proxy** — `runKind: axflow`, `/ax-flows`, `POST /ax-engine/flow-run`, governed worker (`8581375`)
+3. **Dispatcher proxy** — `runKind: axdispatcher`, `/dispatcher`, team topology canvas, governed worker (`b28b80f`)
+4. **Agent Forge Phase 3** — LLM-assisted scaffold (`packages/forge/src/llm-scaffold.ts`, `0007_forge_draft_meta`) ✅
+5. **Docs** — `docs/flow-canvas.md`, `docs/ax-surface-map.md` updated; smoke validated against `:8810` + `:8797`
+
+### What you inherit
+
+Working MVP control plane through Step I, I-lite, Agent Lab, optional LLM routing, **linear graph workflows**, and **two ax-server proxy lanes** (flows + dispatcher). Single-agent runs via `@axplane/ax-adapter` unchanged.
 
 **Operational hazards on Ben's machine:**
 
 - **8797** not 8787 (Kilroy)
-- **3010** not 3000 (ax-studio)
-- **8810** ax-server must be up for `/ax-flows`, `runKind: axflow`, and `/dispatcher` / `runKind: axdispatcher`
+- **3010** not 3000 (ax-studio vs AxPlane web)
+- **8810** ax-server required for proxy lanes
 - **Stale `.next`** → white broken UI
 - **Multiple workers** → run failures
+- **Dispatcher long runs** — non-trivial queries can run minutes on ax-server
 
-**Suggested next work (pick one):**
+### Suggested next work (priority order)
 
-1. **Requests UX** — queue axflow / dispatcher / workflow from Requests page
-2. **Workflow Phase 1** — `DELETE /workflows/:id` + UI (`docs/workflows-roadmap.md`)
-3. **Dispatcher polish** — Langfuse `traceId` on run detail, approval gates on engine tools
+1. **Requests UX** — start agent / workflow / axflow / dispatcher from one place (today: separate pages)
+3. **Workflow Phase 1** — `DELETE /workflows/:id` (`docs/workflows-roadmap.md`)
+4. **Proxy polish** — Langfuse `traceId` from dispatcher SSE on run detail; approval gates on engine tool calls
+5. **Graph v2** — DAG model + conditional/parallel steps (roadmap Phases 2–4)
+6. **Scheduling** — cron / delayed run enqueue
+7. **ax-studio commit** — `file:` dep on `@axplane/flow-canvas` (thin re-exports; studio tree has broader uncommitted work)
+8. **ben-agents3 bridge** — optional: route `ax-flow` assignment through AxPlane governed runs (not started)
+9. **Agent Forge Phase 4/5** — flows/GEPA or pi export brief (`docs/agent-forge-roadmap.md`)
 
-**Explicitly not planned:** governed pi runtime / pi MCP bridge — keep AxPlane separate from `~/Projects/pi`.
+### Explicitly not planned
+
+- In-process child agents in AxPlane worker (`functions: [planner, …]`) — use dispatcher proxy or graph child runs
+- Governed pi runtime / pi MCP bridge — keep separate from `~/Projects/pi`
+- Replacing ax-server with in-process `flow().forward()` inside AxPlane
 
 ### Documentation index (keep in sync)
 
@@ -493,13 +687,15 @@ You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (m
 |-----|---------|
 | `HANDOFF.md` | Operator brief + status matrix (this file) |
 | `docs/ax-surface-map.md` | axllm.dev vs AxPlane — **full** capability grid |
-| `docs/workflows.md` | Current graph workflow behavior + API |
-| `docs/flow-canvas.md` | ax-studio canvas port + `/ax-flows` |
+| `docs/flow-canvas.md` | Canvas package + axflow + dispatcher proxy + smoke |
+| `docs/workflows.md` | Graph child-run workflows |
 | `docs/workflows-roadmap.md` | Delete / DAG v2 / parallel / visual plan |
 | `docs/agent-lab.md` | Agent Lab + optimize |
+| `docs/agent-forge.md` | Agent Forge product brief (intake → scaffold → eval → lab) |
+| `docs/agent-forge-roadmap.md` | Agent Forge phased implementation plan |
 | `docs/runtime-adapters.md` | Runtime facade; pi out of scope |
 | `docs/router-llm.md` | LLM request routing |
 
-**Sync rule:** When AxPlane gains or drops an Ax-surface capability, update **`docs/ax-surface-map.md`** and the **Ax surface** table in §2 above. When workflow executor/UI changes, update **`docs/workflows.md`**, **`docs/workflows-roadmap.md`**, and §2 Graph workflows row.
+**Sync rule:** Capability changes → update `docs/ax-surface-map.md` + §2 here. Workflow changes → `docs/workflows.md` + roadmap + §2. Proxy changes → `docs/flow-canvas.md` + §2 + this §12.
 
-**Start here:** read this file → `README.md` → `pnpm db:migrate` → confirm `8797/health` → open **http://localhost:3010** → walk §11 happy path.
+**Cold start:** this file → `README.md` → `pnpm db:migrate` → `8797/health` (check `axEngine.dispatcherAvailable`) → **http://localhost:3010** → §11 happy path → `/dispatcher` smoke with `"hey"`.

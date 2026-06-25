@@ -111,20 +111,17 @@ export default function AgentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Agents</h1>
-          <p className="text-muted-foreground">Create, duplicate, and configure Ax agents.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            className="bg-secondary text-secondary-foreground hover:opacity-90"
-            onClick={() => { setShowCreate((v) => !v); setError(null); setMessage(null); }}
-          >
-            {showCreate ? 'Cancel' : 'New agent'}
-          </Button>
-          <Button onClick={seed} disabled={seeding}>{seeding ? 'Installing…' : 'Install default agent'}</Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Link href="/agents/forge">
+          <Button className="bg-accent text-accent-foreground hover:opacity-90">New via Forge</Button>
+        </Link>
+        <Button
+          className="bg-secondary text-secondary-foreground hover:opacity-90"
+          onClick={() => { setShowCreate((v) => !v); setError(null); setMessage(null); }}
+        >
+          {showCreate ? 'Cancel' : 'New agent'}
+        </Button>
+        <Button onClick={seed} disabled={seeding}>{seeding ? 'Installing…' : 'Install default agent'}</Button>
       </div>
 
       {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
