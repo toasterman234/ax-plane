@@ -26,11 +26,26 @@ AxPlane includes a read-only flow canvas ported from **ax-studio** (`components/
 
 Worker executes `executeAxFlowRun`: streams ax-server SSE, appends `axflow.*` events to Postgres, stores step overlay in `outputJson.axflow`. Orchestrator agent id: `__axflow__`.
 
+## Dispatcher proxy (team RLM)
+
+ax-server `POST /dispatcher?stream=1` — dynamic supervisor with `team.planner`, `team.coder`, `team.researcher`.
+
+| Surface | Route / field |
+|---------|----------------|
+| Catalog + live UI | `GET /ax-dispatcher`, **`/dispatcher`** page |
+| Live SSE proxy | `POST /ax-engine/dispatcher-run` |
+| Governed run | `POST /runs` with `{ requestId, useDispatcher: true, dispatcherQuery? }` → `runKind: axdispatcher` |
+| Worker | `executeAxDispatcherRun` → `dispatcher.*` events |
+| Orchestrator agent | `__axdispatcher__` |
+
+Static team topology canvas: `DISPATCHER_FLOW_ENTRY` in `@axplane/flow-canvas`.
+
 ## UI
 
 - **`/ax-flows`** — browse engine-registered ax-llm `flow()` programs with canvas
 - **`/workflows`** — graph workflow definitions + topology panel for the selected workflow
-- **Run detail** (`/runs/[id]`) — graph parent runs show live topology overlay from `graph.step.*` events + child run status
+- **`/dispatcher`** — ax-server team orchestrator: live SSE, governed queue, team topology canvas
+- **Run detail** (`/runs/[id]`) — graph parent runs, axflow runs, and axdispatcher runs each show topology overlay
 
 ## Graph run overlay
 
@@ -60,6 +75,14 @@ AX_SERVER_URL=http://127.0.0.1:8810
 
 Against ax-server `:8810` + AxPlane API `:8797` (worker `mode: real`):
 
+**Ax flows**
+
 1. `POST /ax-engine/flow-run` (`research-router`) — SSE `node-start` / `node-end` / `done` ✅
 2. `POST /runs` with `{ requestId, axFlowId, flowInput }` — run completes with `axflow.*` events + `outputJson.axflow` overlay ✅
 3. `GET /ax-flows/:id/runs` — engine history list for paint ✅
+
+**Dispatcher**
+
+1. `POST /ax-engine/dispatcher-run` (`query: "hey"`) — SSE `route-decision` / `delta` / `[DONE]` ✅
+2. `POST /runs` with `{ requestId, useDispatcher: true, dispatcherQuery: "hey" }` — completes with `dispatcher.route|status|completed` + `outputJson.answer` ✅
+3. Non-trivial queries may take minutes (full RLM loop on ax-server) — use short greetings for smoke

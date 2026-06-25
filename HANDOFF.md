@@ -2,8 +2,8 @@
 
 **Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
-**Last updated:** 2026-06-25 (flow-canvas + governed axflow proxy)  
-**Last commit:** `8581375` — flow-canvas package, governed axflow runs, `/ax-flows` UI
+**Last updated:** 2026-06-25 (dispatcher proxy + flow-canvas)  
+**Last commit:** *(pending — dispatcher proxy)*
 
 ---
 
@@ -58,6 +58,7 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 | **Graph workflows** | `graph_workflows`, parent/child runs, `executeGraphRun`, `/workflows` UI + **builder**, `POST /workflows` upsert | ✅ |
 | **Flow canvas** | `@axplane/flow-canvas`, graph + axflow overlays on run detail, `/workflows` topology panel | ✅ |
 | **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
+| **Dispatcher (governed)** | `runKind: axdispatcher`, worker → `/dispatcher` SSE, `dispatcher.*` events, `/dispatcher` UI + live run | ✅ |
 
 ### Agent Lab
 
@@ -89,6 +90,7 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 | MCP / `discover()` / `recall()` | ❌ (memory kernel + host tools instead) |
 | `agent()` RLM + `agent.optimize()` | ✅ (Agent Lab) |
 | Ax `flow()` / AxFlow | ⚠️ partial — governed proxy to ax-server (`runKind: axflow`); graph child runs for multi-agent |
+| Ax dispatcher / team RLM | ⚠️ partial — governed proxy to ax-server `/dispatcher` (`runKind: axdispatcher`); not in-process child agents |
 | Top-level `optimize()` / GEPA | ❌ |
 | Audio / multimodal / token streaming to UI | ❌ |
 | `AxBalancer` / OTel | ❌ |
@@ -467,21 +469,21 @@ curl -X POST http://localhost:8797/eval/runs \
 
 ## 12. Session summary for next agent
 
-You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (mock + ax-native optimize), runtime adapters, optional LLM routing, **linear graph workflows with builder UI**, and **governed axflow runs** (flow-canvas + `/ax-flows` proxy to ax-server `:8810`). Last pushed commit: see `git log -1`.
+You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (mock + ax-native optimize), runtime adapters, optional LLM routing, **linear graph workflows with builder UI**, **governed axflow runs**, and **governed dispatcher proxy** (team RLM via ax-server `:8810`). Last pushed commit: see `git log -1`.
 
 **Operational hazards on Ben's machine:**
 
 - **8797** not 8787 (Kilroy)
 - **3010** not 3000 (ax-studio)
-- **8810** ax-server must be up for `/ax-flows` and `runKind: axflow`
+- **8810** ax-server must be up for `/ax-flows`, `runKind: axflow`, and `/dispatcher` / `runKind: axdispatcher`
 - **Stale `.next`** → white broken UI
 - **Multiple workers** → run failures
 
 **Suggested next work (pick one):**
 
-1. **Workflow Phase 1** — `DELETE /workflows/:id` + UI (`docs/workflows-roadmap.md`)
-2. **Scheduling** — delayed/cron run enqueue
-3. **Axflow polish** — approval gates, Requests-page queue, Langfuse overlay
+1. **Requests UX** — queue axflow / dispatcher / workflow from Requests page
+2. **Workflow Phase 1** — `DELETE /workflows/:id` + UI (`docs/workflows-roadmap.md`)
+3. **Dispatcher polish** — Langfuse `traceId` on run detail, approval gates on engine tools
 
 **Explicitly not planned:** governed pi runtime / pi MCP bridge — keep AxPlane separate from `~/Projects/pi`.
 

@@ -18,6 +18,7 @@ const nav = [
   ['/eval', 'Eval'],
   ['/workflows', 'Workflows'],
   ['/ax-flows', 'AX Flows'],
+  ['/dispatcher', 'Dispatcher'],
   ['/requests', 'Requests'],
   ['/runs', 'Runs'],
   ['/approvals', 'Approvals'],

@@ -52,3 +52,22 @@ export {
   type AxFlowRunInput,
 } from './fetch-runs';
 export { executeAxFlowRun, type AxFlowRepository } from './execute-ax-flow';
+export {
+  DISPATCHER_FLOW_ENTRY,
+  DISPATCHER_FLOW_SPEC,
+} from './dispatcher-spec';
+export {
+  applyDispatcherStreamEvent,
+  deriveDispatcherTraceOverlay,
+  readAxDispatcherRunInput,
+  isAxDispatcherRun,
+  type AxDispatcherRunInput,
+} from './derive-dispatcher-overlay';
+export {
+  AX_DISPATCHER_ORCHESTRATOR_AGENT_ID,
+  checkDispatcherReachable,
+  streamAxDispatcherRun,
+} from './fetch-dispatcher';
+export { executeAxDispatcherRun, type AxDispatcherRepository } from './execute-dispatcher';
+export type { DispatcherStreamEvent } from './dispatcher-types';
+export { parseDispatcherSsePayload } from './dispatcher-types';

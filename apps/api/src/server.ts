@@ -38,7 +38,7 @@ import {
   BUNDLED_WORKFLOW_AGENTS,
   CreateGraphWorkflowSchema,
 } from '@axplane/graph';
-import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase } from '@axplane/flow-canvas';
+import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY } from '@axplane/flow-canvas';
 import type { HostToolDefinition } from '@axplane/host-tools';
 
 const CreateHttpToolSchema = z.object({
@@ -111,14 +111,21 @@ async function classifyRequest(body: string, explicitAgentId?: string) {
 app.get('/health', async (c) => {
   const worker = readWorkerHealth(Number(process.env.WORKER_HEARTBEAT_STALE_MS ?? 10_000));
   const axUrls = resolveAxEngineConfig();
-  let axEngine: { reachable: boolean; flowCount: number; url: string } = {
+  let axEngine: { reachable: boolean; flowCount: number; url: string; dispatcherAvailable: boolean } = {
     reachable: false,
     flowCount: 0,
     url: axUrls.axServerUrl,
+    dispatcherAvailable: false,
   };
   try {
     const flows = await fetchAllFlowEntries();
-    axEngine = { reachable: flows.length > 0, flowCount: flows.length, url: axUrls.axServerUrl };
+    const dispatcherAvailable = await checkDispatcherReachable();
+    axEngine = {
+      reachable: flows.length > 0 || dispatcherAvailable,
+      flowCount: flows.length,
+      url: axUrls.axServerUrl,
+      dispatcherAvailable,
+    };
   } catch {
     // ax-server optional — AxPlane runs without it
   }
@@ -387,6 +394,41 @@ app.post('/ax-engine/flow-run', async (c) => {
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => '');
     return c.json({ error: text || `Engine flow run failed (${upstream.status})` }, 502);
+  }
+  return new Response(upstream.body, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
+});
+
+app.get('/ax-dispatcher', async (c) => {
+  const available = await checkDispatcherReachable();
+  const axUrls = resolveAxEngineConfig();
+  return c.json({
+    available,
+    entry: DISPATCHER_FLOW_ENTRY,
+    axServerUrl: axUrls.axServerUrl,
+  });
+});
+
+const AxEngineDispatcherRunSchema = z.object({
+  query: z.string().min(1),
+});
+
+app.post('/ax-engine/dispatcher-run', async (c) => {
+  const body = AxEngineDispatcherRunSchema.parse(await c.req.json());
+  const { axServerUrl } = resolveAxEngineConfig();
+  const upstream = await fetch(`${axServerUrl}/dispatcher?stream=1`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ query: body.query }),
+  });
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => '');
+    return c.json({ error: text || `Dispatcher run failed (${upstream.status})` }, 502);
   }
   return new Response(upstream.body, {
     headers: {
@@ -794,6 +836,18 @@ app.post('/runs', async (c) => {
       requestId: payload.requestId,
       flowId: payload.axFlowId,
       flowInput: payload.flowInput?.trim() || request.body,
+    });
+    return c.json(run, 201);
+  }
+
+  if (payload.useDispatcher) {
+    const available = await checkDispatcherReachable();
+    if (!available) {
+      return c.json({ error: 'ax-server /dispatcher unavailable (is :8810 up?)' }, 503);
+    }
+    const run = await repo.createAxDispatcherRun({
+      requestId: payload.requestId,
+      query: payload.dispatcherQuery?.trim() || request.body,
     });
     return c.json(run, 201);
   }

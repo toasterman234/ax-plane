@@ -1,7 +1,7 @@
 import { getDefaultAgentConfig, parseAgentConfigJson } from '@axplane/agents';
 import { makeDatabase, createRepositories } from '@axplane/db';
 import { executeGraphRun, isGraphRun, resumeGraphRunAfterApproval } from '@axplane/graph';
-import { executeAxFlowRun, isAxFlowRun, readAxFlowRunInput } from '@axplane/flow-canvas';
+import { executeAxFlowRun, isAxFlowRun, readAxFlowRunInput, executeAxDispatcherRun, isAxDispatcherRun, readAxDispatcherRunInput } from '@axplane/flow-canvas';
 import { runAgentForConfig } from '@axplane/runtime';
 import {
   WorkerAlreadyRunningError,
@@ -90,6 +90,17 @@ async function processRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[n
       repo,
       runId: claimed.id,
       input: axFlowInput,
+    });
+    return;
+  }
+
+  const dispatcherInput = readAxDispatcherRunInput(claimed.inputJson);
+  if (dispatcherInput || claimed.runKind === 'axdispatcher') {
+    if (!dispatcherInput) throw new Error('Invalid dispatcher run input');
+    await executeAxDispatcherRun({
+      repo,
+      runId: claimed.id,
+      input: dispatcherInput,
     });
     return;
   }

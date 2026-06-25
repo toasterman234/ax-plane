@@ -18,11 +18,13 @@ import {
 import {
   deriveAxFlowTraceOverlay,
   isAxFlowRun,
+  isAxDispatcherRun,
   isGraphParentRun,
   readAxFlowRunInput,
 } from '@axplane/flow-canvas';
 import { GraphRunCanvasPanel } from './graph-run-canvas';
 import { AxFlowRunCanvasPanel } from './ax-flow-run-canvas';
+import { DispatcherRunCanvasPanel } from './dispatcher-run-canvas';
 
 type Run = {
   id: string;
@@ -98,7 +100,7 @@ export function RunDetail({ runId }: { runId: string }) {
       setEvents((current) =>
         current.some((e) => e.id === event.id) ? current : [...current, event].sort((a, b) => a.seq - b.seq),
       );
-      if (['run.completed', 'run.failed', 'run.cancelled', 'run.status', 'graph.completed', 'graph.step.completed', 'graph.step.started', 'graph.failed', 'axflow.step.started', 'axflow.step.completed', 'axflow.completed', 'axflow.failed'].includes(event.type)) {
+      if (['run.completed', 'run.failed', 'run.cancelled', 'run.status', 'graph.completed', 'graph.step.completed', 'graph.step.started', 'graph.failed', 'axflow.step.started', 'axflow.step.completed', 'axflow.completed', 'axflow.failed', 'dispatcher.delegate', 'dispatcher.turn', 'dispatcher.completed', 'dispatcher.failed'].includes(event.type)) {
         api<RunResponse>(`/runs/${runId}`).then((data) => {
           setRun(data.run);
           setChildren(data.children ?? []);
@@ -135,6 +137,7 @@ export function RunDetail({ runId }: { runId: string }) {
   const graphEvents = events.filter((e) => e.type.startsWith('graph.'));
   const showGraphCanvas = isGraphParentRun(run);
   const showAxFlowCanvas = isAxFlowRun(run?.inputJson) || run?.runKind === 'axflow';
+  const showDispatcherCanvas = isAxDispatcherRun(run?.inputJson) || run?.runKind === 'axdispatcher';
 
   return (
     <div className="space-y-5">
@@ -145,6 +148,7 @@ export function RunDetail({ runId }: { runId: string }) {
           {run?.agentId ? <p className="mt-1 text-sm text-slate-400">agent: {run.agentId}</p> : null}
           {run?.runKind === 'graph' ? <p className="mt-1 text-sm text-sky-400">graph workflow run</p> : null}
           {run?.runKind === 'axflow' ? <p className="mt-1 text-sm text-violet-400">ax-llm flow() run (governed)</p> : null}
+          {run?.runKind === 'axdispatcher' ? <p className="mt-1 text-sm text-amber-400">ax-server dispatcher run (governed)</p> : null}
           {run?.stepKey ? <p className="mt-1 text-sm text-slate-500">step: {run.stepKey}</p> : null}
           {resolvedModel?.model ? (
             <p className="mt-1 text-sm text-slate-400">
@@ -194,6 +198,7 @@ export function RunDetail({ runId }: { runId: string }) {
       </Section>
 
       {showAxFlowCanvas && run ? <AxFlowRunCanvasPanel run={run} events={events} /> : null}
+      {showDispatcherCanvas && run ? <DispatcherRunCanvasPanel run={run} events={events} /> : null}
 
       {showGraphCanvas && run ? (
         <GraphRunCanvasPanel run={run} events={events} children={children} />

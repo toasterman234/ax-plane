@@ -4,7 +4,7 @@
 > **Companion (ax-lab research):** `../../docs/ax-llm-comparison.md` in the ax-lab repo.  
 > **Sync rule:** When AxPlane gains or drops a capability listed here, update this file **and** the matching rows in `HANDOFF.md` §2 / §12.
 
-**Last reviewed:** 2026-06-25 (flow-canvas + governed axflow proxy to ax-server `:8810`).
+**Last reviewed:** 2026-06-25 (dispatcher proxy + governed axdispatcher runs).
 
 ---
 
@@ -24,6 +24,7 @@ AxPlane is a **control plane around Ax**, not a reimplementation of axllm.dev. I
 | Host tools + HTTP custom tools | Tools `fn()` (not MCP) |
 | Graph child-run workflows | Site “Workflows” / multi-agent (different engine than `flow()`) |
 | Governed axflow runs + flow canvas | Ax `flow()` via ax-server proxy (`runKind: axflow`), not in-process `forward()` |
+| Governed dispatcher + team canvas | Ax `agent()` team RLM via ax-server `/dispatcher` (`runKind: axdispatcher`) |
 | Eval lab + Agent Lab | Optimization + evals on the site |
 | Memory kernel + `memory.*` tools | Agent memory (not `recall()`) |
 | Request router (keyword / LLM) | Intent routing (not `AxBalancer`) |
@@ -40,7 +41,7 @@ AxPlane is a **control plane around Ax**, not a reimplementation of axllm.dev. I
 | **MCP `AxMCPClient`** | ❌ | Not wired; see `docs/runtime-adapters.md` (pi out of scope) |
 | **Agents `agent()`** | ✅ Partial | RLM path (`mode: rlm`); `contextFields`, `contextPolicy`, lab artifacts |
 | **Minimal `agent()` (no JS runtime)** | ❌ | Native path is `ax()`, not minimal `agent()` |
-| **Child agents in `functions: []`** | ❌ | Use graph workflows (child runs), not in-process delegation |
+| **Child agents in `functions: []`** | ❌ | Graph child runs + **dispatcher proxy** (`team.*` on ax-server); not in-process in AxPlane worker |
 | **`discover()` / skills / `selectionCriteria`** | ❌ | No ax-native skill index |
 | **`recall()` / ax memory hooks** | ❌ | Control-plane `memory_entries` kernel + tools instead |
 | **Ax `flow()` / AxFlow** | ⚠️ Partial | Governed `runKind: axflow` proxies ax-sandbox `ax-server` (`:8810`); read-only canvas + overlays. Graph workflows remain child-run orchestration — not in-process `flow().forward()` |
@@ -68,7 +69,7 @@ Legend: ✅ shipped · ⚠️ partial / adjacent · ❌ not in AxPlane · N/A no
 | Function discovery (large catalogs) | ❌ Fixed tool list per agent config |
 | Context maps / PEEK-style orientation | ⚠️ `contextPolicy` on RLM path; limited UI |
 | MCP in `functions` | ❌ |
-| Child agents as typed capabilities | ❌ → graph workflows |
+| Child agents as typed capabilities | ❌ → graph workflows + dispatcher proxy |
 | Memory + skills + MCP in one agent | ❌ → memory kernel + host tools only |
 | `agent.optimize()` | ✅ Agent Lab |
 
@@ -102,6 +103,7 @@ Legend: ✅ shipped · ⚠️ partial / adjacent · ❌ not in AxPlane · N/A no
 | Flow canvas (`@axplane/flow-canvas`) | ✅ |
 | `/ax-flows` catalog + live SSE + governed queue | ✅ |
 | `POST /runs` with `axFlowId` (`runKind: axflow`) | ✅ |
+| `/dispatcher` + governed `runKind: axdispatcher` | ✅ |
 
 ---
 
