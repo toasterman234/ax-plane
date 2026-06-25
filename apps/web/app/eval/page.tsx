@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { DEFAULT_AGENT_ID } from '@/lib/constants';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -46,7 +47,7 @@ type AgentVersion = { id: string; version: number; isCurrent: boolean };
 export default function EvalPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [agentId, setAgentId] = useState('demo_ax_agent');
+  const [agentId, setAgentId] = useState(DEFAULT_AGENT_ID);
   const [agentVersionId, setAgentVersionId] = useState('');
   const [mode, setMode] = useState<'mock' | 'real'>('mock');
   const [selectedSuiteId, setSelectedSuiteId] = useState('');
@@ -84,10 +85,10 @@ export default function EvalPage() {
     setMessage(null);
     setError(null);
     try {
-      const suite = await api<EvalSuite>('/eval/suites/seed-demo', { method: 'POST' });
+      const suite = await api<EvalSuite>('/eval/suites/seed-smoke', { method: 'POST' });
       await suites.refetch();
       setSelectedSuiteId(suite.id);
-      setMessage(`Demo suite ready (${suite.cases.length} cases)`);
+      setMessage(`Smoke suite ready (${suite.cases.length} cases)`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to seed suite');
     }
@@ -145,10 +146,10 @@ export default function EvalPage() {
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Suites</h2>
-          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemoSuite}>Seed demo suite</Button>
+          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemoSuite}>Install smoke suite</Button>
         </div>
         {(suites.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No suites yet. Seed the demo suite to start.</p>
+          <p className="text-sm text-slate-500">No suites yet. Install the smoke suite to start.</p>
         ) : (
           <div className="space-y-2">
             {suites.data?.map((suite) => (

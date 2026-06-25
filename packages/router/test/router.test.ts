@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_AGENT_ID } from '@axplane/agents';
 import { manualOverrideDecision, routeRequest, type RoutableAgent } from '../src/index';
 
-const demoAgent: RoutableAgent = {
-  id: 'demo_ax_agent',
-  name: 'Demo Ax Agent',
-  description: 'Demo',
+const defaultAgent: RoutableAgent = {
+  id: DEFAULT_AGENT_ID,
+  name: 'Default Ax Agent',
+  description: 'Default',
   enabled: true,
   configJson: {
-    id: 'demo_ax_agent',
-    name: 'Demo Ax Agent',
+    id: DEFAULT_AGENT_ID,
+    name: 'Default Ax Agent',
     signature: 'taskText:string -> answer:string',
     routing: { keywords: ['approval', 'risky', 'fake'], priority: 5, isDefault: true },
   },
@@ -31,7 +32,7 @@ describe('routeRequest', () => {
   it('uses explicit agent when provided', () => {
     const decision = routeRequest({
       body: 'anything',
-      agents: [demoAgent, repoAgent],
+      agents: [defaultAgent, repoAgent],
       explicitAgentId: 'repo_agent',
     });
     expect(decision.strategy).toBe('explicit');
@@ -41,7 +42,7 @@ describe('routeRequest', () => {
   it('routes by keyword match', () => {
     const decision = routeRequest({
       body: 'Read README.md from the repo',
-      agents: [demoAgent, repoAgent],
+      agents: [defaultAgent, repoAgent],
     });
     expect(decision.strategy).toBe('keyword');
     expect(decision.selectedAgentId).toBe('repo_agent');
@@ -51,15 +52,15 @@ describe('routeRequest', () => {
   it('falls back to default agent when no keywords match', () => {
     const decision = routeRequest({
       body: 'hello world',
-      agents: [demoAgent, repoAgent],
+      agents: [defaultAgent, repoAgent],
     });
     expect(decision.strategy).toBe('default');
-    expect(decision.selectedAgentId).toBe('demo_ax_agent');
+    expect(decision.selectedAgentId).toBe(DEFAULT_AGENT_ID);
   });
 
   it('builds manual override decisions', () => {
     const decision = manualOverrideDecision({
-      previousAgentId: 'demo_ax_agent',
+      previousAgentId: DEFAULT_AGENT_ID,
       selectedAgentId: 'repo_agent',
     });
     expect(decision.strategy).toBe('manual_override');

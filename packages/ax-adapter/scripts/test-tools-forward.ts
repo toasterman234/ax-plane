@@ -1,11 +1,11 @@
 import { loadEnv } from '../../db/src/load-env.js';
-import { getDemoAgentConfig } from '@axplane/agents';
+import { getDefaultAgentConfig } from '@axplane/agents';
 import { buildAxFunctions } from '../src/build-functions.js';
 import { resolveLlmConfig } from '../src/index.js';
 
 loadEnv();
 
-const config = getDemoAgentConfig();
+const config = getDefaultAgentConfig();
 const ax = await import('@ax-llm/ax');
 const llmConfig = resolveLlmConfig();
 const llm = ax.ai({

@@ -7,7 +7,13 @@ export {
   type GraphStepOutput,
 } from './types';
 export { resolveInputTemplate } from './template';
-export { DEMO_GRAPH_WORKFLOW, GRAPH_DEMO_AGENTS } from './bundled';
+export {
+  BUNDLED_GRAPH_WORKFLOW,
+  BUNDLED_WORKFLOW_AGENTS,
+  DEMO_GRAPH_WORKFLOW,
+  GRAPH_DEMO_AGENTS,
+  LEGACY_GRAPH_WORKFLOW_ID,
+} from './bundled';
 export {
   executeGraphRun,
   resumeGraphRunAfterApproval,

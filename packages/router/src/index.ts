@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_AGENT_ID } from '@axplane/agents';
 import { llmRouteRequest } from './llm-router';
 import { resolveRouterMode, type RouterMode } from './resolve-router-mode';
 import { routingConfig } from './routing-utils';
@@ -41,7 +42,7 @@ export type RoutableAgent = {
   configJson: unknown;
 };
 
-const FALLBACK_DEFAULT_AGENT_ID = 'demo_ax_agent';
+const FALLBACK_DEFAULT_AGENT_ID = DEFAULT_AGENT_ID;
 
 function scoreAgent(body: string, agent: RoutableAgent): RouteCandidate {
   const routing = routingConfig(agent.configJson);

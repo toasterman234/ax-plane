@@ -1,35 +1,44 @@
 import type { GraphWorkflow } from './types';
 
-export const DEMO_GRAPH_WORKFLOW: GraphWorkflow = {
-  id: 'demo_lookup_summarize',
+export const BUNDLED_GRAPH_WORKFLOW: GraphWorkflow = {
+  id: 'lookup_summarize',
   name: 'Lookup then summarize',
   description: 'Two-step graph: read-only lookup agent, then summarize prior output.',
   steps: [
     {
       id: 'lookup',
-      agentId: 'graph_lookup_agent',
+      agentId: 'workflow_lookup_agent',
       inputTemplate: '{{taskText}}',
     },
     {
       id: 'summarize',
-      agentId: 'graph_summarize_agent',
+      agentId: 'workflow_summarize_agent',
       inputTemplate:
         'Summarize the lookup results for the operator.\n\nLookup output:\n{{steps.lookup.output.answer}}',
     },
   ],
 };
 
-export const GRAPH_DEMO_AGENTS = [
+export const BUNDLED_WORKFLOW_AGENTS = [
   {
-    id: 'graph_lookup_agent',
-    name: 'Graph Lookup Agent',
-    description: 'Read-only lookup step for graph demos.',
+    id: 'workflow_lookup_agent',
+    name: 'Workflow Lookup Agent',
+    description: 'Read-only lookup step for bundled sample workflows.',
     tools: ['fake.projectLookup', 'repo.search', 'docs.search'],
   },
   {
-    id: 'graph_summarize_agent',
-    name: 'Graph Summarize Agent',
-    description: 'Summarization step for graph demos.',
+    id: 'workflow_summarize_agent',
+    name: 'Workflow Summarize Agent',
+    description: 'Summarization step for bundled sample workflows.',
     tools: ['fake.projectLookup'],
   },
 ] as const;
+
+/** @deprecated Use {@link BUNDLED_GRAPH_WORKFLOW}. */
+export const DEMO_GRAPH_WORKFLOW = BUNDLED_GRAPH_WORKFLOW;
+
+/** @deprecated Use {@link BUNDLED_WORKFLOW_AGENTS}. */
+export const GRAPH_DEMO_AGENTS = BUNDLED_WORKFLOW_AGENTS;
+
+/** @deprecated Renamed to {@link BUNDLED_GRAPH_WORKFLOW.id}. */
+export const LEGACY_GRAPH_WORKFLOW_ID = 'demo_lookup_summarize';

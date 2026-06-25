@@ -11,7 +11,7 @@ export default function HomePage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <h2 className="font-semibold">1. Submit request</h2>
-          <p className="mt-2 text-sm text-slate-400">Create an inbox request for the demo Ax agent.</p>
+          <p className="mt-2 text-sm text-slate-400">Create an inbox request for the default agent.</p>
           <Link className="mt-4 inline-block underline" href="/requests">Open Requests</Link>
         </Card>
         <Card>
@@ -21,7 +21,7 @@ export default function HomePage() {
         </Card>
         <Card>
           <h2 className="font-semibold">3. Approve tool</h2>
-          <p className="mt-2 text-sm text-slate-400">Approve the fake risky tool and let the worker complete the run.</p>
+          <p className="mt-2 text-sm text-slate-400">Approve the approval-gated tool and let the worker complete the run.</p>
           <Link className="mt-4 inline-block underline" href="/approvals">Open Approvals</Link>
         </Card>
       </div>

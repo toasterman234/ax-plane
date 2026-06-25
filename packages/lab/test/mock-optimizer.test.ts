@@ -1,8 +1,9 @@
+import { DEFAULT_AGENT_ID } from '@axplane/agents';
 import { describe, expect, it } from 'vitest';
 import { mockOptimizeAgent } from '../src/mock-optimizer';
 
 const baseConfig = {
-  id: 'demo_ax_agent',
+  id: DEFAULT_AGENT_ID,
   name: 'Demo',
   description: 'Base agent',
   runtime: 'ax' as const,
@@ -20,7 +21,7 @@ const baseConfig = {
 describe('mockOptimizeAgent', () => {
   it('returns a deterministic tweaked config without mutating input', () => {
     const result = mockOptimizeAgent({
-      agentId: 'demo_ax_agent',
+      agentId: DEFAULT_AGENT_ID,
       agentConfig: baseConfig,
       optimizerType: 'ax-native-mock',
     });

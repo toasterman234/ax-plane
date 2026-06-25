@@ -3,14 +3,14 @@
  */
 import { loadEnv } from '../../db/src/load-env.js';
 import { makeDatabase, createRepositories } from '@axplane/db';
-import { getDemoAgentConfig } from '@axplane/agents';
+import { getDefaultAgentConfig } from '@axplane/agents';
 import { runAxAgent } from '../src/index.js';
 
 loadEnv();
 
 const { db } = makeDatabase();
 const repo = createRepositories(db);
-const config = getDemoAgentConfig();
+const config = getDefaultAgentConfig();
 
 await repo.upsertAgent({
   id: config.id,

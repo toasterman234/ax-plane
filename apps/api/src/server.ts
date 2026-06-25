@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -11,24 +11,29 @@ import {
   CreateAgentSchema,
   DuplicateAgentSchema,
   AgentConfigSchema,
-  buildDemoTemplateAgentConfig,
+  buildFullCatalogAgentConfig,
   buildStarterAgentConfig,
   cloneAgentConfigForDuplicate,
-  demoToolDescriptors,
-  getDemoAgentConfig,
+  catalogToolDescriptors,
+  getDefaultAgentConfig,
   parseAgentConfigJson,
 } from '@axplane/agents';
 import { manualOverrideDecision, resolveRouterMode, routeRequest, routeRequestAsync } from '@axplane/router';
 import { readWorkerHealth } from '@axplane/runtime-dev';
 import { runAgentForConfig } from '@axplane/runtime';
-import { DEMO_EVAL_SUITE, executeEvalRun, type EvalRunSummary } from '@axplane/eval';
+import {
+  SMOKE_EVAL_SUITE,
+  LEGACY_SMOKE_EVAL_SUITE_NAME,
+  executeEvalRun,
+  type EvalRunSummary,
+} from '@axplane/eval';
 import {
   buildEvalComparison,
   executeOptimizationWorkflow,
   metricsFromEvalRun,
   type LabRepository,
 } from '@axplane/lab';
-import { DEMO_GRAPH_WORKFLOW, GRAPH_DEMO_AGENTS } from '@axplane/graph';
+import { BUNDLED_GRAPH_WORKFLOW, BUNDLED_WORKFLOW_AGENTS } from '@axplane/graph';
 import type { HostToolDefinition } from '@axplane/host-tools';
 
 const CreateHttpToolSchema = z.object({
@@ -55,7 +60,7 @@ function toToolDescriptor(tool: HostToolDefinition) {
 
 async function listAllToolDescriptors() {
   const custom = await repo.listCustomTools();
-  return [...demoToolDescriptors, ...custom.map(toToolDescriptor)];
+  return [...catalogToolDescriptors, ...custom.map(toToolDescriptor)];
 }
 
 const { db } = makeDatabase();
@@ -249,14 +254,16 @@ app.post('/memory', async (c) => {
 
 app.get('/eval/suites', async (c) => c.json(await repo.listEvalSuites()));
 
-app.post('/eval/suites/seed-demo', async (c) => {
+async function seedEvalSmokeSuiteHandler(c: Context) {
   const existing = await repo.listEvalSuites();
-  const found = existing.find((suite) => suite.name === DEMO_EVAL_SUITE.name);
+  const found = existing.find(
+    (suite) => suite.name === SMOKE_EVAL_SUITE.name || suite.name === LEGACY_SMOKE_EVAL_SUITE_NAME,
+  );
   if (found) return c.json(found);
   const suite = await repo.createEvalSuite({
-    name: DEMO_EVAL_SUITE.name,
-    description: DEMO_EVAL_SUITE.description,
-    cases: DEMO_EVAL_SUITE.cases.map((row) => ({
+    name: SMOKE_EVAL_SUITE.name,
+    description: SMOKE_EVAL_SUITE.description,
+    cases: SMOKE_EVAL_SUITE.cases.map((row) => ({
       name: row.name,
       taskText: row.taskText,
       criteria: row.criteria,
@@ -264,7 +271,10 @@ app.post('/eval/suites/seed-demo', async (c) => {
     })),
   });
   return c.json(suite, 201);
-});
+}
+
+app.post('/eval/suites/seed-smoke', seedEvalSmokeSuiteHandler);
+app.post('/eval/suites/seed-demo', seedEvalSmokeSuiteHandler);
 
 app.post('/eval/suites', async (c) => {
   const payload = CreateEvalSuiteSchema.parse(await c.req.json());
@@ -312,9 +322,9 @@ app.post('/eval/runs', async (c) => {
 
 app.get('/workflows', async (c) => c.json(await repo.listGraphWorkflows()));
 
-app.post('/workflows/seed-demo', async (c) => {
+async function seedBundledWorkflowHandler(c: Context) {
   await repo.ensureGraphOrchestratorAgent();
-  for (const agent of GRAPH_DEMO_AGENTS) {
+  for (const agent of BUNDLED_WORKFLOW_AGENTS) {
     const configJson = AgentConfigSchema.parse({
       ...buildStarterAgentConfig({
         id: agent.id,
@@ -332,13 +342,16 @@ app.post('/workflows/seed-demo', async (c) => {
     });
   }
   const workflow = await repo.upsertGraphWorkflow({
-    id: DEMO_GRAPH_WORKFLOW.id,
-    name: DEMO_GRAPH_WORKFLOW.name,
-    description: DEMO_GRAPH_WORKFLOW.description,
-    steps: DEMO_GRAPH_WORKFLOW.steps,
+    id: BUNDLED_GRAPH_WORKFLOW.id,
+    name: BUNDLED_GRAPH_WORKFLOW.name,
+    description: BUNDLED_GRAPH_WORKFLOW.description,
+    steps: BUNDLED_GRAPH_WORKFLOW.steps,
   });
   return c.json(workflow, 201);
-});
+}
+
+app.post('/workflows/seed-default', seedBundledWorkflowHandler);
+app.post('/workflows/seed-demo', seedBundledWorkflowHandler);
 
 app.get('/workflows/:id', async (c) => {
   const workflow = await repo.getGraphWorkflow(c.req.param('id'));
@@ -348,8 +361,8 @@ app.get('/workflows/:id', async (c) => {
 
 app.get('/agents', async (c) => c.json(await repo.listAgents()));
 
-app.post('/agents/seed-demo', async (c) => {
-  const config = getDemoAgentConfig();
+async function seedDefaultAgentHandler(c: Context) {
+  const config = getDefaultAgentConfig();
   const version = await repo.upsertAgent({
     id: config.id,
     name: config.name,
@@ -358,12 +371,15 @@ app.post('/agents/seed-demo', async (c) => {
     configJson: config,
   });
   return c.json({ ok: true, version });
-});
+}
+
+app.post('/agents/seed-default', seedDefaultAgentHandler);
+app.post('/agents/seed-demo', seedDefaultAgentHandler);
 
 app.post('/agents', async (c) => {
   const payload = CreateAgentSchema.parse(await c.req.json());
-  const configJson = payload.template === 'demo'
-    ? buildDemoTemplateAgentConfig(payload)
+  const configJson = payload.template === 'full'
+    ? buildFullCatalogAgentConfig(payload)
     : buildStarterAgentConfig(payload);
 
   try {
@@ -460,21 +476,23 @@ app.get('/agents/:id/lab/suites', async (c) => {
   return c.json(await repo.listEvalSuites(agentId));
 });
 
-app.post('/agents/:id/lab/suites/seed-demo', async (c) => {
+async function seedAgentLabSmokeSuiteHandler(c: Context) {
   const agentId = c.req.param('id');
+  if (!agentId) return c.json({ error: 'Not found' }, 404);
   const agent = await repo.getAgent(agentId);
   if (!agent) return c.json({ error: 'Not found' }, 404);
 
   const suites = await repo.listEvalSuites(agentId);
-  const demoName = `${DEMO_EVAL_SUITE.name} (${agentId})`;
-  const found = suites.find((suite) => suite.name === demoName);
+  const smokeName = `${SMOKE_EVAL_SUITE.name} (${agentId})`;
+  const legacyName = `${LEGACY_SMOKE_EVAL_SUITE_NAME} (${agentId})`;
+  const found = suites.find((suite) => suite.name === smokeName || suite.name === legacyName);
   if (found) return c.json(found);
 
   const suite = await repo.createEvalSuite({
-    name: demoName,
-    description: DEMO_EVAL_SUITE.description,
+    name: smokeName,
+    description: SMOKE_EVAL_SUITE.description,
     agentId,
-    cases: DEMO_EVAL_SUITE.cases.map((row) => ({
+    cases: SMOKE_EVAL_SUITE.cases.map((row) => ({
       name: row.name,
       taskText: row.taskText,
       criteria: row.criteria,
@@ -482,7 +500,10 @@ app.post('/agents/:id/lab/suites/seed-demo', async (c) => {
     })),
   });
   return c.json(suite, 201);
-});
+}
+
+app.post('/agents/:id/lab/suites/seed-smoke', seedAgentLabSmokeSuiteHandler);
+app.post('/agents/:id/lab/suites/seed-demo', seedAgentLabSmokeSuiteHandler);
 
 app.post('/agents/:id/lab/baseline-eval', async (c) => {
   const agentId = c.req.param('id');

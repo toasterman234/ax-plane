@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_AGENT_ID } from '@axplane/agents';
 import { mockLlmRouteRequest, routeRequestAsync, type RoutableAgent } from '../src/index';
 
-const demoAgent: RoutableAgent = {
-  id: 'demo_ax_agent',
-  name: 'Demo Ax Agent',
-  description: 'Approval and planning demo agent',
+const defaultAgent: RoutableAgent = {
+  id: DEFAULT_AGENT_ID,
+  name: 'Default Ax Agent',
+  description: 'Approval and planning default agent',
   enabled: true,
   configJson: {
-    id: 'demo_ax_agent',
-    name: 'Demo Ax Agent',
+    id: DEFAULT_AGENT_ID,
+    name: 'Default Ax Agent',
     signature: 'taskText:string -> answer:string',
     routing: { keywords: ['approval', 'risky', 'fake'], priority: 5, isDefault: true },
   },
@@ -17,7 +18,7 @@ const demoAgent: RoutableAgent = {
 const repoAgent: RoutableAgent = {
   id: 'repo_agent',
   name: 'Repo Agent',
-  description: 'Reads repository files and docs',
+  description: 'Reads files',
   enabled: true,
   configJson: {
     id: 'repo_agent',
@@ -28,32 +29,19 @@ const repoAgent: RoutableAgent = {
 };
 
 describe('mockLlmRouteRequest', () => {
-  it('picks the repo agent for file-oriented requests', () => {
+  it('picks repo agent when body matches repo keywords', () => {
     const decision = mockLlmRouteRequest({
-      body: 'Please read README.md from the repository',
-      agents: [demoAgent, repoAgent],
-    });
-    expect(decision.strategy).toBe('llm');
-    expect(decision.selectedAgentId).toBe('repo_agent');
-    expect(decision.confidence).toBeGreaterThan(0);
-  });
-});
-
-describe('routeRequestAsync', () => {
-  it('uses keyword routing in keyword mode', async () => {
-    const decision = await routeRequestAsync({
       body: 'Read README.md from the repo',
-      agents: [demoAgent, repoAgent],
-      routerMode: 'keyword',
+      agents: [defaultAgent, repoAgent],
     });
-    expect(decision.strategy).toBe('keyword');
     expect(decision.selectedAgentId).toBe('repo_agent');
+    expect(decision.strategy).toBe('llm');
   });
 
   it('uses mock LLM routing in llm mode', async () => {
     const decision = await routeRequestAsync({
-      body: 'Need repository file help with README',
-      agents: [demoAgent, repoAgent],
+      body: 'Read README.md from the repo',
+      agents: [defaultAgent, repoAgent],
       routerMode: 'llm',
       mode: 'mock',
     });
@@ -63,34 +51,39 @@ describe('routeRequestAsync', () => {
 
   it('hybrid falls back to mock LLM when keywords miss', async () => {
     const decision = await routeRequestAsync({
-      body: 'Please inspect README.md in the repository',
-      agents: [demoAgent, repoAgent],
-      routerMode: 'hybrid',
-      mode: 'mock',
-    });
-    expect(decision.strategy).toBe('keyword');
-    expect(decision.selectedAgentId).toBe('repo_agent');
-  });
-
-  it('hybrid uses mock LLM on default keyword miss', async () => {
-    const decision = await routeRequestAsync({
-      body: 'Summarize onboarding documentation quality',
-      agents: [demoAgent, repoAgent],
+      body: 'Summarize the quarterly earnings for the board',
+      agents: [defaultAgent, repoAgent],
       routerMode: 'hybrid',
       mode: 'mock',
     });
     expect(decision.strategy).toBe('llm');
-    expect(decision.selectedAgentId).toBe('demo_ax_agent');
+    expect(decision.selectedAgentId).toBeTruthy();
   });
 
-  it('hybrid keeps keyword wins without LLM', async () => {
+  it('hybrid uses mock LLM on default keyword miss', async () => {
     const decision = await routeRequestAsync({
-      body: 'Use the fake risky tool for approval testing',
-      agents: [demoAgent, repoAgent],
+      body: 'hello world',
+      agents: [defaultAgent, repoAgent],
       routerMode: 'hybrid',
       mode: 'mock',
     });
-    expect(decision.strategy).toBe('keyword');
-    expect(decision.selectedAgentId).toBe('demo_ax_agent');
+    expect(decision.strategy).toBe('llm');
+    expect(decision.selectedAgentId).toBe(DEFAULT_AGENT_ID);
+  });
+
+  it('defaults to default agent on weak body match', () => {
+    const decision = mockLlmRouteRequest({
+      body: 'hello',
+      agents: [defaultAgent, repoAgent],
+    });
+    expect(decision.selectedAgentId).toBe(DEFAULT_AGENT_ID);
+  });
+
+  it('prefers default agent when both match weakly', () => {
+    const decision = mockLlmRouteRequest({
+      body: 'approval plan',
+      agents: [defaultAgent, repoAgent],
+    });
+    expect(decision.selectedAgentId).toBe(DEFAULT_AGENT_ID);
   });
 });

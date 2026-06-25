@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { formatMemoriesForPrompt, rankMemoryEntries } from '../src/scoring';
 
+const DEFAULT_AGENT_ID = 'default_ax_agent';
+
 describe('memory scoring', () => {
   const entries = [
     {
       id: '1',
-      agentId: 'demo_ax_agent',
+      agentId: DEFAULT_AGENT_ID,
       runId: null,
       content: 'Ben prefers approval-gated write tools',
       tags: ['decision', 'policy'],

@@ -3,7 +3,7 @@
 **Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
 **Last updated:** 2026-06-25  
-**Last commit:** `233c851` — Agent Lab + runtime adapter layer
+**Last commit:** `eabc445` — LLM routing + Agent Lab + runtime layer
 
 ---
 
@@ -85,7 +85,7 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 ```bash
 pnpm db:migrate   # through 0005_agent_lab.sql
 pnpm typecheck    # green
-pnpm test         # ~50 tests, green
+pnpm test         # ~55 tests, green
 ```
 
 Real-mode smoke:
@@ -104,7 +104,7 @@ cp .env.example .env
 docker compose up -d           # Postgres on host port 5433
 pnpm install
 pnpm db:migrate
-pnpm db:seed                   # demo agent + sample request
+pnpm db:seed                   # default agent + sample request
 pnpm dev                       # api + worker + web (web defaults to 3010)
 ```
 
@@ -119,7 +119,7 @@ pnpm dev                       # api + worker + web (web defaults to 3010)
 **First-time UI checklist:**
 
 1. Confirm banner is clear (not red) — API + worker healthy
-2. **Agents → Seed demo agent** (if list empty)
+2. **Agents → Install default agent** (if list empty)
 3. **Requests → Submit** (router picks agent)
 4. **Start run** on the request
 5. Run detail streams events live over SSE
@@ -127,7 +127,7 @@ pnpm dev                       # api + worker + web (web defaults to 3010)
 
 **Graph demo checklist:**
 
-1. `POST /workflows/seed-demo` or **Workflows → Seed demo workflow**
+1. `POST /workflows/seed-default` or **Workflows → Install sample workflow**
 2. Pick a request → **Start workflow run**
 3. Open parent run → **Graph steps** shows child runs (`lookup`, `summarize`)
 
@@ -164,16 +164,16 @@ apps/web          Next.js dashboard
 apps/api          Hono API + SSE (/runs/:id/stream)
 apps/worker       Polls queued runs; graph parent runs execute child runs inline
 
-packages/db       Drizzle schema, repositories, migrations 0000–0004
+packages/db       Drizzle schema, repositories, migrations 0000–0005
 packages/events   Event taxonomy + Zod schemas
 packages/policy   allow / block / approval_required
 packages/host-tools   repo, docs, github, shell, custom HTTP tools
 packages/agents   YAML config, tool descriptors, routing, models, templates
-packages/router   Request classification (keyword / default / explicit)
+packages/router   Request classification (keyword / default / llm / hybrid)
+packages/runtime  RuntimeAdapter facade (ax wired, pi stub)
 packages/runtime-dev   Dev worker lock + heartbeat for health checks
-packages/ax-adapter   mock + real Ax runner, guardedHostTool, resume, memory inject
-packages/runtime    RuntimeAdapter facade (ax wired, pi stub)
-packages/lab        Agent Lab mock optimizer + comparison workflow
+packages/ax-adapter   mock + real Ax runner, optimize, guardedHostTool, resume, memory inject
+packages/lab        Agent Lab optimizer workflow + comparison
 packages/memory   Scoring, kernel inject, memory.* tool execution
 packages/eval     Deterministic eval scoring + suite runner
 packages/graph    Workflow defs, template resolution, executeGraphRun
@@ -196,7 +196,7 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 
 | Area | Path |
 |------|------|
-| Demo agent YAML | `packages/agents/config/demo-agent.yaml` |
+| Default agent YAML | `packages/agents/config/default-agent.yaml` |
 | Agent models / templates | `packages/agents/src/models.ts`, `templates.ts` |
 | Agent editor UI | `apps/web/app/agents/[id]/agent-editor.tsx` |
 | Tools UI | `apps/web/app/tools/page.tsx` |
@@ -213,14 +213,18 @@ packages/graph    Workflow defs, template resolution, executeGraphRun
 | Eval scoring | `packages/eval/src/scoring.ts` |
 | Router logic | `packages/router/src/index.ts` |
 | DB repositories | `packages/db/src/repositories.ts` |
+| Agent Lab UI | `apps/web/app/agents/[id]/agent-lab.tsx` |
 | API health banner | `apps/web/lib/api-health.tsx` |
+| Ax optimize | `packages/ax-adapter/src/optimize-agent.ts` |
+| LLM router | `packages/router/src/llm-router.ts` |
+| Runtime facade | `packages/runtime/src/factory.ts` |
 
 ---
 
 ## 7. API endpoints (current)
 
 ```txt
-GET    /health
+GET    /health                      # includes router.mode
 
 GET    /tools
 POST   /tools
@@ -231,24 +235,38 @@ POST   /memory
 
 GET    /eval/suites
 POST   /eval/suites
-POST   /eval/suites/seed-demo
+POST   /eval/suites/seed-smoke
+POST   /eval/suites/seed-demo            # deprecated alias
 GET    /eval/suites/:id
 GET    /eval/runs
 GET    /eval/runs/:id
 POST   /eval/runs
 
 GET    /workflows
-POST   /workflows/seed-demo
+POST   /workflows/seed-default
+POST   /workflows/seed-demo              # deprecated alias
 GET    /workflows/:id
 
 GET    /agents
 POST   /agents
-POST   /agents/seed-demo
+POST   /agents/seed-default
+POST   /agents/seed-demo                 # deprecated alias
 GET    /agents/:id
 GET    /agents/:id/versions
 PATCH  /agents/:id
 POST   /agents/:id/versions
 POST   /agents/:id/duplicate
+
+GET    /agents/:id/lab/suites
+POST   /agents/:id/lab/suites/seed-smoke
+POST   /agents/:id/lab/suites/seed-demo  # deprecated alias
+POST   /agents/:id/lab/baseline-eval
+POST   /agents/:id/lab/optimize
+GET    /agents/:id/lab/optimization-runs
+GET    /agents/:id/lab/candidates
+GET    /agents/:id/lab/comparison
+POST   /agents/:id/lab/candidates/:candidateId/promote
+POST   /agents/:id/lab/candidates/:candidateId/reject
 
 GET    /requests
 GET    /requests/:id
@@ -334,25 +352,25 @@ Cliproxy/Gemini rejects duplicate bare function names. **Fixed:** LLM-facing nam
 
 If a **child** step hits `needs_approval`, the **parent** graph run pauses. After approve/reject on the child, worker calls `resumeGraphRunAfterApproval` to continue the graph.
 
-### Eval demo suite
+### Smoke eval suite
 
-Seeded `Demo smoke` suite may have old cases in DB if seeded before mock-tool fix. Re-seed or edit cases — case 1 should use safe-tool criteria (not `fake.riskyAction` unless testing approval).
+Seeded `Smoke` suite may have old cases in DB if seeded before mock-tool fix. Legacy name `Demo smoke` still resolves on re-seed. Re-seed or edit cases — case 1 should use safe-tool criteria (not `fake.riskyAction` unless testing approval).
 
-### Uncommitted work
+### LLM routing
 
-Everything after Step H (I-lite, memory, eval, graph, web port fix, health timeout) is **on disk but not committed**. Commit to `ax-lab` when ready — not `ben-agents3`.
+Set `AXPLANE_ROUTER_MODE=hybrid` (or `llm`) in `.env` and restart API. Mock mode uses a deterministic classifier without API keys. See `docs/router-llm.md`.
 
 ---
 
 ## 9. Agent config & routing
 
-**Demo agent ID:** `demo_ax_agent`
+**Default agent ID:** `default_ax_agent` (legacy `demo_ax_agent` may exist in older DBs — run `POST /agents/seed-default` or `pnpm db:seed`)
 
-**Graph demo agents:** `graph_lookup_agent`, `graph_summarize_agent` (seeded via `POST /workflows/seed-demo`)
+**Bundled workflow agents:** `workflow_lookup_agent`, `workflow_summarize_agent` (via `POST /workflows/seed-default`)
 
 **Agent editor:** `/agents/:id` — tools, policies, routing keywords, per-agent models, memory inject settings.
 
-**Router keywords** (demo defaults): `approval`, `plan`, `demo`, `fake`, `risky` + `isDefault: true`.
+**Router keywords** (default): `approval`, `plan`, `fake`, `risky` + `isDefault: true`.
 
 **Memory:** Agents can set `memory.kernelInject: true` and `memory.injectLimit`. Kernel searches `memory_entries` at run start and emits `memory.injected`.
 
@@ -382,7 +400,7 @@ Everything after Step H (I-lite, memory, eval, graph, web port fix, health timeo
 
 ```bash
 curl http://localhost:8797/health
-curl -X POST http://localhost:8797/agents/seed-demo
+curl -X POST http://localhost:8797/agents/seed-default
 curl -X POST http://localhost:8797/requests \
   -H 'Content-Type: application/json' \
   -d '{"body":"Create a plan and use the fake risky tool for approval testing."}'
@@ -392,10 +410,10 @@ curl -X POST http://localhost:8797/requests \
 ### Graph workflow
 
 ```bash
-curl -X POST http://localhost:8797/workflows/seed-demo
+curl -X POST http://localhost:8797/workflows/seed-default
 curl -X POST http://localhost:8797/runs \
   -H 'Content-Type: application/json' \
-  -d '{"requestId":"<REQUEST_ID>","workflowId":"demo_lookup_summarize"}'
+  -d '{"requestId":"<REQUEST_ID>","workflowId":"lookup_summarize"}'
 curl http://localhost:8797/runs/<PARENT_RUN_ID>
 curl http://localhost:8797/runs/<PARENT_RUN_ID>/children
 ```
@@ -412,17 +430,17 @@ curl 'http://localhost:8797/memory?limit=10'
 ### Eval
 
 ```bash
-curl -X POST http://localhost:8797/eval/suites/seed-demo
+curl -X POST http://localhost:8797/eval/suites/seed-smoke
 curl -X POST http://localhost:8797/eval/runs \
   -H 'Content-Type: application/json' \
-  -d '{"suiteId":"<SUITE_ID>","agentId":"demo_ax_agent"}'
+  -d '{"suiteId":"<SUITE_ID>","agentId":"default_ax_agent"}'
 ```
 
 ---
 
 ## 12. Session summary for next agent
 
-You inherit a **working MVP control plane** through **Step I** (memory, eval, graph) plus **I-lite** (agent CRUD, per-agent models, HTTP custom tools). All of that is **uncommitted** since `6d0ca04`.
+You inherit a **working MVP control plane** through Step I, I-lite, Agent Lab (mock + ax-native optimize), runtime adapters, and optional LLM routing. All shipped work is **committed and pushed** to `ax-lab` on `main` (through `eabc445`).
 
 **Operational hazards on Ben's machine:**
 
@@ -435,5 +453,7 @@ You inherit a **working MVP control plane** through **Step I** (memory, eval, gr
 
 1. **Governed pi runtime** — implement `piRuntimeAdapter` against `~/Projects/pi`
 2. **Scheduling** — delayed/cron run enqueue
+
+**Docs:** `HANDOFF.md`, `docs/agent-lab.md`, `docs/runtime-adapters.md`, `docs/router-llm.md`
 
 **Start here:** read this file → `README.md` → `pnpm db:migrate` → confirm `8797/health` → open **http://localhost:3010** → walk §11 happy path.

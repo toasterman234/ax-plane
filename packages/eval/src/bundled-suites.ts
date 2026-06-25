@@ -1,7 +1,7 @@
 import type { EvalCriterion } from './types';
 
-export const DEMO_EVAL_SUITE = {
-  name: 'Demo smoke',
+export const SMOKE_EVAL_SUITE = {
+  name: 'Smoke',
   description: 'Fast mock-mode checks for completion, output, and approval gates.',
   cases: [
     {
@@ -34,3 +34,9 @@ export const DEMO_EVAL_SUITE = {
     },
   ],
 };
+
+/** @deprecated Use {@link SMOKE_EVAL_SUITE}. */
+export const DEMO_EVAL_SUITE = SMOKE_EVAL_SUITE;
+
+/** Legacy suite display name before de-demo rename. */
+export const LEGACY_SMOKE_EVAL_SUITE_NAME = 'Demo smoke';

@@ -11,7 +11,7 @@ export type AgentModelConfig = z.infer<typeof AgentModelConfigSchema>;
 export const AgentModelsSchema = z.object({
   primary: AgentModelConfigSchema.optional(),
   fallback: AgentModelConfigSchema.optional(),
-  /** @deprecated Use `primary`. Kept for demo-agent.yaml compatibility. */
+  /** @deprecated Use `primary`. Kept for default-agent.yaml compatibility. */
   default: AgentModelConfigSchema.optional(),
 }).default({});
 

@@ -8,9 +8,11 @@ import { api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+import { DEFAULT_AGENT_ID } from '@/lib/constants';
+
 type Agent = { id: string; name: string; description: string; enabled: boolean };
 
-type CreateTemplate = 'starter' | 'demo';
+type CreateTemplate = 'starter' | 'full';
 
 function slugifyId(value: string) {
   return value
@@ -42,11 +44,11 @@ export default function AgentsPage() {
     setMessage(null);
     setError(null);
     try {
-      await api('/agents/seed-demo', { method: 'POST' });
+      await api('/agents/seed-default', { method: 'POST' });
       await query.refetch();
-      setMessage('Demo agent ready: demo_ax_agent');
+      setMessage(`Default agent ready: ${DEFAULT_AGENT_ID}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to seed demo agent. Is the API running on :8797?');
+      setError(err instanceof Error ? err.message : 'Failed to install default agent. Is the API running on :8797?');
     } finally {
       setSeeding(false);
     }
@@ -121,7 +123,7 @@ export default function AgentsPage() {
           >
             {showCreate ? 'Cancel' : 'New agent'}
           </Button>
-          <Button onClick={seed} disabled={seeding}>{seeding ? 'Seeding…' : 'Seed demo agent'}</Button>
+          <Button onClick={seed} disabled={seeding}>{seeding ? 'Installing…' : 'Install default agent'}</Button>
         </div>
       </div>
 
@@ -166,8 +168,8 @@ export default function AgentsPage() {
               value={newTemplate}
               onChange={(e) => setNewTemplate(e.target.value as CreateTemplate)}
             >
-              <option value="starter">Starter — 5 read-only tools</option>
-              <option value="demo">Demo — full 14-tool catalog (not default router)</option>
+              <option value="starter">Starter — read-only tools</option>
+              <option value="full">Full catalog — all host tools (not default router)</option>
             </select>
           </label>
           <p className="text-xs text-slate-500">
@@ -188,7 +190,7 @@ export default function AgentsPage() {
       {!query.isLoading && !query.isError && (query.data?.length ?? 0) === 0 ? (
         <Card>
           <p className="text-slate-300">
-            No agents yet. Click <strong>New agent</strong> or <strong>Seed demo agent</strong> to get started.
+            No agents yet. Click <strong>New agent</strong> or <strong>Install default agent</strong> to get started.
           </p>
         </Card>
       ) : null}

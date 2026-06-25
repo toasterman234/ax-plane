@@ -33,10 +33,10 @@ export default function WorkflowsPage() {
     setMessage(null);
     setError(null);
     try {
-      const workflow = await api<Workflow>('/workflows/seed-demo', { method: 'POST' });
+      const workflow = await api<Workflow>('/workflows/seed-default', { method: 'POST' });
       await workflows.refetch();
       setSelectedWorkflowId(workflow.id);
-      setMessage(`Demo workflow ready (${workflow.steps.length} steps)`);
+      setMessage(`Sample workflow ready (${workflow.steps.length} steps)`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to seed workflow');
     }
@@ -76,10 +76,10 @@ export default function WorkflowsPage() {
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Definitions</h2>
-          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemo}>Seed demo workflow</Button>
+          <Button className="bg-slate-800 text-white hover:bg-slate-700" onClick={seedDemo}>Install sample workflow</Button>
         </div>
         {(workflows.data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No workflows yet. Seed the demo to get a two-step lookup → summarize graph.</p>
+          <p className="text-sm text-slate-500">No workflows yet. Install the sample workflow for a two-step lookup → summarize graph.</p>
         ) : (
           <div className="space-y-2">
             {workflows.data?.map((workflow) => (

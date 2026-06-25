@@ -1,6 +1,6 @@
-id: demo_ax_agent
-name: Demo Ax Agent
-description: AxPlane demo agent with read-only host tools, persistent memory, and approval-gated write tools.
+id: default_ax_agent
+name: Default Ax Agent
+description: AxPlane default agent with read-only host tools, persistent memory, and approval-gated write tools.
 runtime: ax
 mode: rlm
 signature: "taskText:string \"the user task\" -> answer:string, nextActions:string[]"
@@ -39,7 +39,6 @@ routing:
   keywords:
     - approval
     - plan
-    - demo
     - fake
     - risky
   priority: 0

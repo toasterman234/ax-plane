@@ -13,7 +13,7 @@ AxPlane is a local-first control plane around `@ax-llm/ax`. This MVP implements 
 
 ## What works in this MVP
 
-1. Define one demo Ax agent through YAML config.
+1. Define one default Ax agent through YAML config.
 2. Submit a request from the UI.
 3. Start a run.
 4. Worker executes the run.
@@ -75,7 +75,7 @@ If host port `5432` is already taken, this repo defaults Postgres to **`5433`** 
 
 Open:
 
-- Web: http://localhost:3000 (or 3010 if 3000 is busy)
+- Web: http://localhost:3010 (default; ax-studio often owns 3000)
 - API health: http://localhost:8797/health
 
 **Note:** Port **8787** is often used by Kilroy on this machine. AxPlane defaults to **8797**.
@@ -91,7 +91,7 @@ pnpm build
 Expected health response:
 
 ```json
-{ "ok": true, "service": "axplane-api" }
+{ "ok": true, "service": "axplane-api", "router": { "mode": "keyword", "executionMode": "mock" } }
 ```
 
 ## Host tools (Steps E/F)
@@ -118,7 +118,7 @@ Write tools pause at `needs_approval` the same way as `fake.riskyAction`.
 
 ## Agent config editor (Phase 6)
 
-Open **Agents → Edit config** (or `/agents/demo_ax_agent`) to:
+Open **Agents → Edit config** (or `/agents/default_ax_agent`) to:
 
 - Edit name, description, signature, mode, and context policy
 - Enable/disable tools with risk badges (read-only vs approval-required)
@@ -193,30 +193,40 @@ pnpm typecheck     # workspace TypeScript check
 pnpm build         # production build (includes Next.js)
 pnpm db:generate   # generate Drizzle migrations
 pnpm db:migrate    # run migrations
-pnpm db:seed       # seed demo agent/request
+pnpm db:seed       # seed default agent/request
 ```
 
 ## Architecture
 
 ```txt
-apps/web     -> Next.js PWA dashboard
-apps/api     -> Hono API + SSE stream
-apps/worker  -> run polling and Ax execution
-packages/db  -> Drizzle schema + repositories
-packages/events -> normalized event taxonomy
-packages/policy -> allow/block/approval policy engine
-packages/host-tools -> repo, docs, github, shell tool implementations
-packages/agents -> demo agent config and tool descriptors
-packages/ax-adapter -> mock + real Ax runner adapter
+apps/web        -> Next.js dashboard
+apps/api        -> Hono API + SSE stream
+apps/worker     -> run polling; executes via @axplane/runtime
+
+packages/db           -> Drizzle schema + repositories (migrations 0000–0005)
+packages/events       -> normalized event taxonomy
+packages/policy       -> allow/block/approval policy engine
+packages/host-tools   -> repo, docs, github, shell, HTTP tools
+packages/agents       -> agent config, routing, models, templates
+packages/router       -> keyword + optional LLM request routing
+packages/runtime      -> RuntimeAdapter facade (ax wired, pi stub)
+packages/ax-adapter   -> mock + real Ax runner, agent.optimize path
+packages/lab            -> Agent Lab workflow (optimize, compare, promote)
+packages/memory         -> kernel inject, memory.* tools
+packages/eval           -> eval suites + deterministic scoring
+packages/graph          -> control-plane child-run workflows
+packages/runtime-dev    -> worker lock + heartbeat
 ```
 
-The UI never calls Ax directly. The worker runs agents through the Ax adapter, which emits normalized events into Postgres. The web app renders the event log.
+The UI never calls Ax directly. The worker runs agents through `@axplane/runtime` → `@axplane/ax-adapter`, which emits normalized events into Postgres. The web app renders the event log.
 
 ## Notes
 
-This is an MVP scaffold. It intentionally does **not** implement scheduling, graph topology, evals, memory, or multi-runtime support yet.
+Still **not** implemented: **scheduling** (cron/delayed runs) and **governed pi runtime** (stub fails loud).
 
-### Local validation status (2026-06-24)
+Implemented since the original MVP scaffold: memory kernel, eval lab, graph workflows, Agent Lab, multi-runtime facade, LLM routing. See `HANDOFF.md` for the full status matrix.
+
+### Local validation status (2026-06-25)
 
 Mock mode validated end-to-end via API:
 
@@ -235,4 +245,4 @@ Known local gotchas:
 
 - Postgres binds to host port **5433** when **5432** is already in use.
 - SSE uses default `message` events (not named event types) so `EventSource.onmessage` works.
-- If web fails with `EADDRINUSE` on port 3000, stop the other process or run `pnpm dev:web` on another port.
+- If web fails with `EADDRINUSE` on port 3000, stop the other process or set `PORT=3010` (AxPlane default).

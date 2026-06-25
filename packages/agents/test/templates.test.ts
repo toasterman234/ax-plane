@@ -3,7 +3,7 @@ import {
   AgentIdSchema,
   buildStarterAgentConfig,
   cloneAgentConfigForDuplicate,
-  getDemoAgentConfig,
+  getDefaultAgentConfig,
 } from '../src/index';
 
 describe('agent templates', () => {
@@ -21,12 +21,12 @@ describe('agent templates', () => {
   });
 
   it('clones config with new id and clears default routing', () => {
-    const demo = getDemoAgentConfig();
-    const cloned = cloneAgentConfigForDuplicate(demo, { id: 'ops_agent', name: 'Ops Agent' });
+    const base = getDefaultAgentConfig();
+    const cloned = cloneAgentConfigForDuplicate(base, { id: 'ops_agent', name: 'Ops Agent' });
     expect(cloned.id).toBe('ops_agent');
     expect(cloned.name).toBe('Ops Agent');
     expect(cloned.routing.isDefault).toBe(false);
-    expect(cloned.tools.length).toBe(demo.tools.length);
+    expect(cloned.tools.length).toBe(base.tools.length);
   });
 
   it('validates agent id slug', () => {

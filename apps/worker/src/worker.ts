@@ -1,4 +1,4 @@
-import { getDemoAgentConfig, parseAgentConfigJson } from '@axplane/agents';
+import { getDefaultAgentConfig, parseAgentConfigJson } from '@axplane/agents';
 import { makeDatabase, createRepositories } from '@axplane/db';
 import { executeGraphRun, isGraphRun, resumeGraphRunAfterApproval } from '@axplane/graph';
 import { runAgentForConfig } from '@axplane/runtime';
@@ -27,7 +27,7 @@ try {
 }
 
 async function ensureDemoAgent() {
-  const config = getDemoAgentConfig();
+  const config = getDefaultAgentConfig();
   await repo.upsertAgent({
     id: config.id,
     name: config.name,
@@ -50,7 +50,7 @@ async function loadAgentConfigForRun(run: Awaited<ReturnType<typeof repo.listQue
     }
   }
 
-  return getDemoAgentConfig();
+  return getDefaultAgentConfig();
 }
 
 async function maybeResumeParentGraph(childRun: Awaited<ReturnType<typeof repo.getRun>>) {

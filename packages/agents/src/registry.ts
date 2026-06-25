@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { HOST_TOOL_CATALOG } from '@axplane/host-tools';
+import { DEFAULT_AGENT_ID } from './constants';
 import {
   AgentConfigSchema,
   AgentIdSchema,
@@ -50,19 +51,28 @@ export {
   buildStarterAgentConfig,
   cloneAgentConfigForDuplicate,
 } from './templates';
+export { DEFAULT_AGENT_ID, LEGACY_DEMO_AGENT_ID } from './constants';
 
-export function loadAgentConfig(filePath = path.resolve(process.cwd(), 'packages/agents/config/demo-agent.yaml')): AgentConfig {
+const DEFAULT_CONFIG_FILENAME = 'default-agent.yaml';
+const LEGACY_CONFIG_FILENAME = 'demo-agent.yaml';
+
+export function loadAgentConfig(
+  filePath = path.resolve(process.cwd(), `packages/agents/config/${DEFAULT_CONFIG_FILENAME}`),
+): AgentConfig {
   const raw = fs.readFileSync(filePath, 'utf8');
   const parsed = yaml.load(raw);
   return AgentConfigSchema.parse(parsed);
 }
 
-export function getDemoAgentConfig(): AgentConfig {
+export function getDefaultAgentConfig(): AgentConfig {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidatePaths = [
-    path.resolve(process.cwd(), 'packages/agents/config/demo-agent.yaml'),
-    path.resolve(process.cwd(), '../../packages/agents/config/demo-agent.yaml'),
-    path.resolve(here, '../config/demo-agent.yaml'),
+    path.resolve(process.cwd(), `packages/agents/config/${DEFAULT_CONFIG_FILENAME}`),
+    path.resolve(process.cwd(), `../../packages/agents/config/${DEFAULT_CONFIG_FILENAME}`),
+    path.resolve(here, `../config/${DEFAULT_CONFIG_FILENAME}`),
+    path.resolve(process.cwd(), `packages/agents/config/${LEGACY_CONFIG_FILENAME}`),
+    path.resolve(process.cwd(), `../../packages/agents/config/${LEGACY_CONFIG_FILENAME}`),
+    path.resolve(here, `../config/${LEGACY_CONFIG_FILENAME}`),
   ];
 
   for (const candidate of candidatePaths) {
@@ -70,9 +80,9 @@ export function getDemoAgentConfig(): AgentConfig {
   }
 
   return AgentConfigSchema.parse({
-    id: 'demo_ax_agent',
-    name: 'Demo Ax Agent',
-    description: 'Fallback in-memory demo agent config.',
+    id: DEFAULT_AGENT_ID,
+    name: 'Default Ax Agent',
+    description: 'Fallback in-memory default agent config.',
     runtime: 'ax',
     mode: 'rlm',
     signature: 'taskText:string "the user task" -> answer:string, nextActions:string[]',
@@ -82,27 +92,33 @@ export function getDemoAgentConfig(): AgentConfig {
   });
 }
 
-export function buildDemoTemplateAgentConfig(input: {
+/** @deprecated Use {@link getDefaultAgentConfig}. */
+export const getDemoAgentConfig = getDefaultAgentConfig;
+
+export function buildFullCatalogAgentConfig(input: {
   id: string;
   name: string;
   description?: string;
 }): AgentConfig {
-  const demo = getDemoAgentConfig();
+  const base = getDefaultAgentConfig();
   return AgentConfigSchema.parse({
-    ...demo,
+    ...base,
     id: input.id,
     name: input.name,
-    description: input.description ?? demo.description,
+    description: input.description ?? base.description,
     tools: HOST_TOOL_CATALOG.map((tool) => tool.qualifiedName),
     routing: {
-      ...demo.routing,
-      keywords: [...(demo.routing?.keywords ?? [])],
+      ...base.routing,
+      keywords: [...(base.routing?.keywords ?? [])],
       isDefault: false,
     },
   });
 }
 
-export const demoToolDescriptors = HOST_TOOL_CATALOG.map((tool) => ({
+/** @deprecated Use {@link buildFullCatalogAgentConfig}. */
+export const buildDemoTemplateAgentConfig = buildFullCatalogAgentConfig;
+
+export const catalogToolDescriptors = HOST_TOOL_CATALOG.map((tool) => ({
   qualifiedName: tool.qualifiedName,
   namespace: tool.namespace,
   name: tool.name,
@@ -111,6 +127,9 @@ export const demoToolDescriptors = HOST_TOOL_CATALOG.map((tool) => ({
   args: tool.parameters,
 }));
 
+/** @deprecated Use {@link catalogToolDescriptors}. */
+export const demoToolDescriptors = catalogToolDescriptors;
+
 export function getToolDescriptor(qualifiedName: string) {
-  return demoToolDescriptors.find((tool) => tool.qualifiedName === qualifiedName);
+  return catalogToolDescriptors.find((tool) => tool.qualifiedName === qualifiedName);
 }

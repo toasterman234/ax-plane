@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { DEFAULT_AGENT_ID } from '@/lib/constants';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -23,7 +24,7 @@ export default function MemoryPage() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('ops, decision');
   const [scope, setScope] = useState<'global' | 'agent'>('global');
-  const [agentId, setAgentId] = useState('demo_ax_agent');
+  const [agentId, setAgentId] = useState(DEFAULT_AGENT_ID);
   const [filterAgentId, setFilterAgentId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);

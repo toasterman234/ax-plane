@@ -120,7 +120,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
     ?? null;
 
   const seedSuite = useMutation({
-    mutationFn: () => api<EvalSuite>(`/agents/${agentId}/lab/suites/seed-demo`, { method: 'POST' }),
+    mutationFn: () => api<EvalSuite>(`/agents/${agentId}/lab/suites/seed-smoke`, { method: 'POST' }),
     onSuccess: async (suite) => {
       setSuiteId(suite.id);
       setMessage(`Seeded eval suite (${suite.cases.length} cases)`);
@@ -229,7 +229,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
             onClick={() => seedSuite.mutate()}
             disabled={seedSuite.isPending}
           >
-            Seed demo suite
+            Install smoke suite
           </Button>
         </div>
         {(suites.data ?? []).length === 0 ? (

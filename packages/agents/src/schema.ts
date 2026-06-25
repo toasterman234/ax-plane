@@ -68,7 +68,10 @@ export const CreateAgentSchema = z.object({
   id: AgentIdSchema,
   name: z.string().min(1),
   description: z.string().default(''),
-  template: z.enum(['starter', 'demo']).default('starter'),
+  template: z.preprocess(
+    (value) => (value === 'demo' ? 'full' : value),
+    z.enum(['starter', 'full']).default('starter'),
+  ),
 });
 
 export type CreateAgentInput = z.infer<typeof CreateAgentSchema>;
