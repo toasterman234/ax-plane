@@ -3,7 +3,7 @@
 **Repo:** `ax-lab/axplane/` (inside `~/Projects/ax-lab`)  
 **Issue:** [toasterman234/ax-lab#3](https://github.com/toasterman234/ax-lab/issues/3)  
 **Last updated:** 2026-06-25 (flow-canvas + governed axflow proxy)  
-**Last commit:** *(pending — flow-canvas package, `/ax-flows`, axflow worker)*
+**Last commit:** `8581375` — flow-canvas package, governed axflow runs, `/ax-flows` UI
 
 ---
 
