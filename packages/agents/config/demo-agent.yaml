@@ -1,20 +1,43 @@
 id: demo_ax_agent
 name: Demo Ax Agent
-description: MVP demo agent with one safe lookup tool and one approval-gated fake risky tool.
+description: AxPlane demo agent with read-only host tools and approval-gated write tools.
 runtime: ax
 mode: rlm
-signature: "request:string -> answer:string, nextActions:string[]"
+signature: "taskText:string \"the user task\" -> answer:string, nextActions:string[]"
 contextFields:
-  - request
+  - taskText
 contextPolicy:
   preset: checkpointed
   budget: balanced
 tools:
   - fake.projectLookup
   - fake.riskyAction
+  - repo.listFiles
+  - repo.readFile
+  - repo.search
+  - repo.writeFile
+  - github.searchIssues
+  - github.readIssue
+  - github.readFile
+  - github.createIssue
+  - github.createBranch
+  - github.createPR
+  - docs.search
+  - shell.run
 policies:
-  - fake_risky_action_requires_approval
+  - default_allow
+  - write_tool_requires_approval
+  - block_secret_exfiltration
 models:
   default:
     provider: openai
     model: gpt-4o-mini
+routing:
+  keywords:
+    - approval
+    - plan
+    - demo
+    - fake
+    - risky
+  priority: 0
+  isDefault: true

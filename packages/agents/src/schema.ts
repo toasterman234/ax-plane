@@ -15,9 +15,37 @@ export const AgentConfigSchema = z.object({
   tools: z.array(z.string()).default([]),
   policies: z.array(z.string()).default([]),
   models: z.record(z.any()).default({}),
+  routing: z.object({
+    keywords: z.array(z.string()).default([]),
+    priority: z.number().int().default(0),
+    isDefault: z.boolean().default(false),
+  }).default({ keywords: [], priority: 0, isDefault: false }),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+export const AgentMetadataUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  enabled: z.boolean().optional(),
+});
+
+export type AgentMetadataUpdate = z.infer<typeof AgentMetadataUpdateSchema>;
+
+/** Body for POST /agents/:id/versions — id comes from the URL. */
+export const SaveAgentVersionSchema = AgentConfigSchema.omit({ id: true });
+
+export type SaveAgentVersionInput = z.infer<typeof SaveAgentVersionSchema>;
+
+export const KNOWN_POLICIES = [
+  'default_allow',
+  'write_tool_requires_approval',
+  'block_secret_exfiltration',
+] as const;
+
+export function parseAgentConfigJson(json: unknown): AgentConfig {
+  return AgentConfigSchema.parse(json);
+}
 
 export type ToolDescriptor = {
   qualifiedName: string;

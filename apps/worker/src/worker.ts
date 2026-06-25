@@ -1,10 +1,28 @@
+import { getDemoAgentConfig, parseAgentConfigJson } from '@axplane/agents';
 import { makeDatabase, createRepositories } from '@axplane/db';
-import { getDemoAgentConfig } from '@axplane/agents';
 import { runAxAgent } from '@axplane/ax-adapter';
+import {
+  WorkerAlreadyRunningError,
+  acquireWorkerLock,
+  registerWorkerShutdown,
+  writeWorkerHeartbeat,
+} from '@axplane/runtime-dev';
 
 const { db } = makeDatabase();
 const repo = createRepositories(db);
 const pollMs = Number(process.env.WORKER_POLL_MS ?? 1500);
+const executionMode = process.env.AXPLANE_EXECUTION_MODE ?? 'mock';
+
+try {
+  acquireWorkerLock();
+  registerWorkerShutdown();
+} catch (error) {
+  if (error instanceof WorkerAlreadyRunningError) {
+    console.error(error.message);
+    process.exit(1);
+  }
+  throw error;
+}
 
 async function ensureDemoAgent() {
   const config = getDemoAgentConfig();
@@ -17,18 +35,39 @@ async function ensureDemoAgent() {
   });
 }
 
+async function loadAgentConfigForRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[number]) {
+  const version = run.agentVersionId
+    ? await repo.getAgentVersion(run.agentVersionId)
+    : await repo.getCurrentAgentVersion(run.agentId);
+
+  if (version?.configJson) {
+    try {
+      return parseAgentConfigJson(version.configJson);
+    } catch (error) {
+      console.warn('Invalid agent config in DB, falling back to demo yaml', run.agentId, error);
+    }
+  }
+
+  return getDemoAgentConfig();
+}
+
 async function processRun(run: Awaited<ReturnType<typeof repo.listQueuedRuns>>[number]) {
-  const config = getDemoAgentConfig();
-  const input = (run.inputJson ?? {}) as { request?: string };
+  const claimed = await repo.claimQueuedRun(run.id);
+  if (!claimed) return;
+
+  const config = await loadAgentConfigForRun(claimed);
+  const input = (claimed.inputJson ?? {}) as { taskText?: string; request?: string };
+  const taskText = input.taskText ?? input.request ?? 'No request body provided.';
   await runAxAgent({
-    runId: run.id,
+    runId: claimed.id,
     agentConfig: config,
-    input: { request: input.request ?? 'No request body provided.' },
+    input: { taskText },
     repo,
   });
 }
 
 async function tick() {
+  writeWorkerHeartbeat({ mode: executionMode });
   const queued = await repo.listQueuedRuns(2);
   for (const run of queued) {
     try {
@@ -40,7 +79,7 @@ async function tick() {
 }
 
 await ensureDemoAgent();
-console.log(`AxPlane worker polling every ${pollMs}ms. Mode=${process.env.AXPLANE_EXECUTION_MODE ?? 'mock'}`);
+console.log(`AxPlane worker polling every ${pollMs}ms. Mode=${executionMode} pid=${process.pid}`);
 
 setInterval(() => {
   tick().catch((error) => console.error('Worker tick failed', error));

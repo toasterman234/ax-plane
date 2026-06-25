@@ -1,65 +1,52 @@
 import type { Repositories } from '@axplane/db';
 import type { AgentConfig } from '@axplane/agents';
-import { evaluatePolicy, PendingApprovalError, PolicyBlockedError } from '@axplane/policy';
+import { PendingApprovalError } from '@axplane/policy';
+import { buildAxFunctions } from './build-functions';
+import { guardedHostTool } from './guarded-tool';
+import { readRunResume, type RunResumeCheckpoint } from './resume';
 
 export type RunAxAgentArgs = {
   runId: string;
   agentConfig: AgentConfig;
-  input: { request: string };
+  input: { taskText: string };
   repo: Repositories;
   mode?: 'mock' | 'real';
 };
 
-async function guardedFakeTool(args: {
-  repo: Repositories;
-  runId: string;
-  qualifiedName: string;
-  toolArgs: Record<string, unknown>;
-  risk?: 'safe' | 'medium' | 'risky';
-}) {
-  const { repo, runId, qualifiedName, toolArgs, risk } = args;
-  const toolCall = await repo.createToolCall({ runId, qualifiedName, argsJson: toolArgs, status: 'requested' });
-  await repo.appendRunEvent(runId, 'ax.function_call.requested', { toolCallId: toolCall.id, qualifiedName, args: toolArgs, risk });
+export type LlmConfig = {
+  provider: string;
+  apiKey: string;
+  apiURL?: string;
+  model: string;
+};
 
-  const decision = evaluatePolicy({ runId, qualifiedName, args: toolArgs, risk });
+export function resolveLlmConfig(): LlmConfig {
+  const apiKey =
+    process.env.AX_API_KEY ??
+    process.env.OPENAI_API_KEY ??
+    process.env.OPENAI_APIKEY;
 
-  if (decision.decision === 'block') {
-    await repo.updateToolCall(toolCall.id, { status: 'blocked' });
-    await repo.appendRunEvent(runId, 'ax.function_call.blocked', { toolCallId: toolCall.id, qualifiedName, decision });
-    throw new PolicyBlockedError(decision.policyId, decision.reason);
+  if (!apiKey) {
+    throw new Error(
+      'A model API key is required for AXPLANE_EXECUTION_MODE=real. Set AX_API_KEY (cliproxy) or OPENAI_API_KEY.',
+    );
   }
 
-  if (decision.decision === 'approval_required') {
-    const approved = await repo.getApprovedApprovalForTool(runId, qualifiedName);
-    if (!approved) {
-      const approval = await repo.createApproval({
-        runId,
-        toolCallId: toolCall.id,
-        toolName: qualifiedName,
-        reason: decision.reason,
-        requestedActionJson: { qualifiedName, args: toolArgs, policyId: decision.policyId },
-      });
-      await repo.updateToolCall(toolCall.id, { status: 'approval_required', approvalId: approval.id });
-      await repo.appendRunEvent(runId, 'ax.function_call.approval_required', {
-        toolCallId: toolCall.id,
-        approvalId: approval.id,
-        qualifiedName,
-        decision,
-      });
-      throw new PendingApprovalError(approval.id, decision.reason);
-    }
-  }
+  return {
+    provider: process.env.AX_PROVIDER ?? 'openai',
+    apiKey,
+    apiURL: process.env.AX_BASE_URL,
+    model: process.env.AX_MODEL ?? 'gpt-4o-mini',
+  };
+}
 
-  await repo.updateToolCall(toolCall.id, { status: 'allowed' });
-  await repo.appendRunEvent(runId, 'ax.function_call.allowed', { toolCallId: toolCall.id, qualifiedName, decision });
-
-  const result = qualifiedName === 'fake.projectLookup'
-    ? { project: 'AxPlane MVP', constraints: ['local-first', 'approval-gated tools', 'durable event log'] }
-    : { ok: true, fakeSideEffect: 'approved-risky-action-executed', received: toolArgs };
-
-  await repo.updateToolCall(toolCall.id, { status: 'completed', resultJson: result });
-  await repo.appendRunEvent(runId, 'ax.function_call.completed', { toolCallId: toolCall.id, qualifiedName, result });
-  return result;
+function createLlm(ax: typeof import('@ax-llm/ax'), config: LlmConfig) {
+  return ax.ai({
+    name: config.provider,
+    apiKey: config.apiKey,
+    ...(config.apiURL ? { apiURL: config.apiURL } : {}),
+    config: { model: config.model, temperature: 0 },
+  } as never);
 }
 
 export async function runMockAxAgent(args: RunAxAgentArgs) {
@@ -71,15 +58,14 @@ export async function runMockAxAgent(args: RunAxAgentArgs) {
     stage: 'distiller',
     turn: 1,
     javascriptCode: 'const request = inputs.request; console.log(request.slice(0, 80));',
-    result: input.request.slice(0, 80),
+    result: input.taskText.slice(0, 80),
   });
 
-  const project = await guardedFakeTool({
+  const project = await guardedHostTool({
     repo,
     runId,
     qualifiedName: 'fake.projectLookup',
-    toolArgs: { query: input.request },
-    risk: 'safe',
+    toolArgs: { query: input.taskText },
   });
 
   await repo.appendRunEvent(runId, 'ax.actor_turn', {
@@ -89,12 +75,11 @@ export async function runMockAxAgent(args: RunAxAgentArgs) {
     result: project,
   });
 
-  await guardedFakeTool({
+  await guardedHostTool({
     repo,
     runId,
     qualifiedName: 'fake.riskyAction',
-    toolArgs: { reason: 'MVP approval-gate validation', request: input.request },
-    risk: 'risky',
+    toolArgs: { reason: 'MVP approval-gate validation', request: input.taskText },
   });
 
   await repo.appendRunEvent(runId, 'ax.actor_turn', {
@@ -105,13 +90,13 @@ export async function runMockAxAgent(args: RunAxAgentArgs) {
   });
 
   const output = {
-    answer: `Handled request: ${input.request}. The safe lookup ran, the risky fake tool was approved, and the run completed.`,
-    nextActions: ['Replace fake tools with real host-side tool wrappers', 'Switch AXPLANE_EXECUTION_MODE=real when provider keys are ready'],
+    answer: `Handled request: ${input.taskText}. The safe lookup ran, the risky fake tool was approved, and the run completed.`,
+    nextActions: ['Try repo.readFile on README.md', 'Use docs.search for architecture notes'],
   };
 
   await repo.appendRunEvent(runId, 'ax.chat_log.captured', {
     chatLog: [
-      { role: 'user', content: input.request },
+      { role: 'user', content: input.taskText },
       { role: 'assistant', content: output.answer },
     ],
   });
@@ -127,88 +112,216 @@ export async function runMockAxAgent(args: RunAxAgentArgs) {
   return output;
 }
 
-export async function runRealAxAgent(args: RunAxAgentArgs) {
-  const { repo, runId, input, agentConfig } = args;
-  await repo.updateRunStatus(runId, 'running');
-  await repo.appendRunEvent(runId, 'run.started', { input, mode: 'real' });
-
-  const ax = await import('@ax-llm/ax');
-  const { agent, ai, AxJSRuntime, f, fn } = ax as any;
-
-  const provider = process.env.AX_PROVIDER ?? 'openai';
-  const apiKey = process.env.OPENAI_API_KEY ?? process.env.OPENAI_APIKEY;
-  const model = process.env.AX_MODEL ?? 'gpt-4o-mini';
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY or OPENAI_APIKEY is required for AXPLANE_EXECUTION_MODE=real');
-  }
-
-  const llm = ai({
-    name: provider,
-    apiKey,
-    config: { model, temperature: 0 },
+async function captureAxProgramTelemetry(
+  repo: Repositories,
+  runId: string,
+  program: {
+    getChatLog?: () => unknown;
+    getUsage?: () => unknown;
+    getStagedUsage?: () => unknown;
+    getTraces?: () => unknown;
+  },
+) {
+  await repo.appendRunEvent(runId, 'ax.chat_log.captured', { chatLog: program.getChatLog?.() ?? null });
+  await repo.appendRunEvent(runId, 'ax.usage.captured', {
+    usage: program.getUsage?.() ?? null,
+    stagedUsage: program.getStagedUsage?.() ?? null,
   });
+  await repo.appendRunEvent(runId, 'ax.traces.captured', { traces: program.getTraces?.() ?? null });
+}
 
-  const runtime = new AxJSRuntime();
+function buildResumeOutput(taskText: string, completedTools: Array<{ qualifiedName: string; resultJson: unknown }>) {
+  return {
+    answer: `Handled request: ${taskText}. Prior tools finished; the risky fake tool was approved, and the run completed.`,
+    nextActions: [
+      'Try repo.readFile or docs.search on the next run',
+    ],
+    toolResults: completedTools.map((tool) => ({ name: tool.qualifiedName, result: tool.resultJson })),
+  };
+}
 
-  const functions = [
-    fn('projectLookup')
-      .description('Return deterministic fake project context for the request.')
-      .namespace('fake')
-      .arg('query', f.string('Project lookup query'))
-      .returns(f.string('Project context as JSON'))
-      .handler(async ({ query }: { query: string }) => guardedFakeTool({
-        repo,
-        runId,
-        qualifiedName: 'fake.projectLookup',
-        toolArgs: { query },
-        risk: 'safe',
-      }).then((value: unknown) => JSON.stringify(value)))
-      .build(),
-    fn('riskyAction')
-      .description('Fake side-effecting action used to validate approval gates.')
-      .namespace('fake')
-      .arg('reason', f.string('Reason for the risky action'))
-      .returns(f.string('Risky action result as JSON'))
-      .handler(async ({ reason }: { reason: string }) => guardedFakeTool({
-        repo,
-        runId,
-        qualifiedName: 'fake.riskyAction',
-        toolArgs: { reason },
-        risk: 'risky',
-      }).then((value: unknown) => JSON.stringify(value)))
-      .build(),
-  ];
-
-  const axAgent = agent(agentConfig.signature, {
-    name: agentConfig.name,
-    contextFields: agentConfig.contextFields ?? [],
-    runtime,
-    functions,
-    contextPolicy: agentConfig.contextPolicy ?? { preset: 'checkpointed', budget: 'balanced' },
-    actorTurnCallback: async (turn: unknown) => repo.appendRunEvent(runId, 'ax.actor_turn', { turn }),
-    onContextEvent: async (event: unknown) => repo.appendRunEvent(runId, 'ax.context_event', { event }),
-    agentStatusCallback: async (message: string, status: unknown) => repo.appendRunEvent(runId, 'run.status', { message, status }),
-    onFunctionCall: async (call: unknown) => repo.appendRunEvent(runId, 'ax.function_call.requested', { call, source: 'ax-callback-observation' }),
+async function finishRunWithOutput(
+  repo: Repositories,
+  runId: string,
+  input: { taskText: string },
+  output: Record<string, unknown>,
+  telemetry?: { getChatLog?: () => unknown; getUsage?: () => unknown; getStagedUsage?: () => unknown; getTraces?: () => unknown },
+) {
+  await repo.appendRunEvent(runId, 'ax.chat_log.captured', {
+    chatLog: telemetry?.getChatLog?.() ?? [
+      { role: 'user', content: input.taskText },
+      { role: 'assistant', content: String(output.answer ?? '') },
+    ],
   });
-
-  const output = await axAgent.forward(llm, input);
-  await repo.appendRunEvent(runId, 'ax.chat_log.captured', { chatLog: axAgent.getChatLog?.() ?? null });
-  await repo.appendRunEvent(runId, 'ax.usage.captured', { usage: axAgent.getUsage?.() ?? null, stagedUsage: axAgent.getStagedUsage?.() ?? null });
-  await repo.appendRunEvent(runId, 'ax.traces.captured', { traces: axAgent.getTraces?.() ?? null });
+  await repo.appendRunEvent(runId, 'ax.usage.captured', {
+    usage: telemetry?.getUsage?.() ?? { note: 'resume completion' },
+    stagedUsage: telemetry?.getStagedUsage?.() ?? null,
+  });
+  await repo.appendRunEvent(runId, 'ax.traces.captured', {
+    traces: telemetry?.getTraces?.() ?? [{ name: 'axplane.resume', runId }],
+  });
   await repo.updateRunStatus(runId, 'completed', { outputJson: output });
   await repo.appendRunEvent(runId, 'run.completed', { output });
   return output;
 }
 
+async function finishRealRunAfterTools(args: RunAxAgentArgs, completedTools: Awaited<ReturnType<Repositories['listToolCallsForRun']>>) {
+  const { repo, runId, input, agentConfig } = args;
+  const ax = await import('@ax-llm/ax');
+  const llm = createLlm(ax, resolveLlmConfig());
+  const toolSummary = completedTools
+    .filter((tool) => tool.status === 'completed')
+    .map((tool) => `${tool.qualifiedName}: ${JSON.stringify(tool.resultJson)}`)
+    .join('\n');
+
+  const program = ax.ax(agentConfig.signature, {
+    description: `${agentConfig.description}\n\nTool results are already final. Do not call tools again.\n${toolSummary}`,
+  });
+
+  const output = await program.forward(llm, { taskText: input.taskText }, { debug: true });
+  await captureAxProgramTelemetry(repo, runId, program);
+  await repo.updateRunStatus(runId, 'completed', { outputJson: output });
+  await repo.appendRunEvent(runId, 'run.completed', { output, resumed: true });
+  return output;
+}
+
+async function resumeAfterApproval(args: RunAxAgentArgs & { resume: RunResumeCheckpoint }) {
+  const { repo, runId, input, resume } = args;
+  const mode = args.mode ?? (process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock');
+
+  await repo.updateRunStatus(runId, 'running');
+  await repo.appendRunEvent(runId, 'run.resumed', { resume, mode });
+  await repo.clearRunResume(runId);
+
+  await guardedHostTool({
+    repo,
+    runId,
+    qualifiedName: resume.qualifiedName,
+    toolArgs: resume.toolArgs,
+    existingToolCallId: resume.toolCallId,
+    skipIfCompleted: false,
+  });
+
+  const completedTools = await repo.listToolCallsForRun(runId);
+  if (mode === 'real') {
+    return finishRealRunAfterTools(args, completedTools);
+  }
+
+  await repo.appendRunEvent(runId, 'ax.actor_turn', {
+    stage: 'responder',
+    turn: 'resume',
+    result: { resumed: true, completedTool: resume.qualifiedName },
+  });
+
+  const output = buildResumeOutput(
+    input.taskText,
+    completedTools.filter((tool) => tool.status === 'completed').map((tool) => ({
+      qualifiedName: tool.qualifiedName,
+      resultJson: tool.resultJson,
+    })),
+  );
+  return finishRunWithOutput(repo, runId, input, output);
+}
+
+/** Native tool-calling path — matches ax-lab keystone pattern (no JS-runtime loop). */
+export async function runRealAxNativeAgent(args: RunAxAgentArgs) {
+  const { repo, runId, input, agentConfig } = args;
+  const llmConfig = resolveLlmConfig();
+  const events = await repo.listRunEvents(runId);
+  if (!events.some((event) => event.type === 'run.started')) {
+    await repo.updateRunStatus(runId, 'running');
+    await repo.appendRunEvent(runId, 'run.started', { input, mode: 'real', execution: 'native-tools' });
+  }
+
+  const ax = await import('@ax-llm/ax');
+  const llm = createLlm(ax, llmConfig);
+  const functions = buildAxFunctions(repo, runId, agentConfig.tools);
+
+  const program = ax.ax(agentConfig.signature, {
+    description: agentConfig.description,
+    functions,
+  });
+
+  const output = await program.forward(llm, input, { debug: true });
+  await captureAxProgramTelemetry(repo, runId, program);
+  await repo.updateRunStatus(runId, 'completed', { outputJson: output });
+  await repo.appendRunEvent(runId, 'run.completed', { output });
+  return output;
+}
+
+/** RLM pipeline path — Ax agent() with JS runtime (demo default config). */
+export async function runRealAxRlmAgent(args: RunAxAgentArgs) {
+  const { repo, runId, input, agentConfig } = args;
+  const llmConfig = resolveLlmConfig();
+  await repo.updateRunStatus(runId, 'running');
+  await repo.appendRunEvent(runId, 'run.started', { input, mode: 'real', execution: 'rlm-agent' });
+
+  const ax = await import('@ax-llm/ax');
+  const { agent, AxJSRuntime } = ax;
+  const llm = createLlm(ax, llmConfig);
+  const runtime = new AxJSRuntime();
+  const functions = buildAxFunctions(repo, runId, agentConfig.tools);
+
+  const axAgent = agent(agentConfig.signature, {
+    agentIdentity: { name: agentConfig.name, description: agentConfig.description },
+    contextFields: agentConfig.contextFields ?? [],
+    runtime,
+    functions,
+    contextPolicy: (agentConfig.contextPolicy ?? { preset: 'checkpointed', budget: 'balanced' }) as never,
+    actorTurnCallback: async (turn: unknown) => {
+      await repo.appendRunEvent(runId, 'ax.actor_turn', { turn });
+    },
+    onContextEvent: async (event: unknown) => {
+      await repo.appendRunEvent(runId, 'ax.context_event', { event });
+    },
+    agentStatusCallback: async (message: string, status: unknown) => {
+      await repo.appendRunEvent(runId, 'run.status', { message, status });
+    },
+    onFunctionCall: async (call: unknown) => {
+      await repo.appendRunEvent(runId, 'ax.function_call.requested', { call, source: 'ax-callback-observation' });
+    },
+  });
+
+  const output = await axAgent.forward(llm, input);
+  await captureAxProgramTelemetry(repo, runId, axAgent);
+  await repo.updateRunStatus(runId, 'completed', { outputJson: output });
+  await repo.appendRunEvent(runId, 'run.completed', { output });
+  return output;
+}
+
+export async function runRealAxAgent(args: RunAxAgentArgs) {
+  const strategy = process.env.AXPLANE_REAL_STRATEGY ?? 'native';
+  return strategy === 'native' ? runRealAxNativeAgent(args) : runRealAxRlmAgent(args);
+}
+
+function findPendingApproval(error: unknown): PendingApprovalError | null {
+  if (error instanceof PendingApprovalError) return error;
+  if (error && typeof error === 'object' && 'cause' in error) {
+    return findPendingApproval((error as { cause: unknown }).cause);
+  }
+  return null;
+}
+
 export async function runAxAgent(args: RunAxAgentArgs) {
   const mode = args.mode ?? (process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock');
+  const run = await args.repo.getRun(args.runId);
+  const resume = readRunResume(run?.inputJson);
+
   try {
+    if (resume) {
+      return await resumeAfterApproval({ ...args, resume, mode });
+    }
     return mode === 'real' ? await runRealAxAgent(args) : await runMockAxAgent(args);
   } catch (error) {
-    if (error instanceof PendingApprovalError) {
+    const pending = findPendingApproval(error);
+    if (pending) {
       await args.repo.updateRunStatus(args.runId, 'needs_approval');
-      await args.repo.appendRunEvent(args.runId, 'run.status', { status: 'needs_approval', approvalId: error.approvalId, message: error.message });
-      return { pendingApprovalId: error.approvalId };
+      await args.repo.appendRunEvent(args.runId, 'run.status', {
+        status: 'needs_approval',
+        approvalId: pending.approvalId,
+        message: pending.message,
+      });
+      return { pendingApprovalId: pending.approvalId };
     }
 
     const message = error instanceof Error ? error.message : String(error);

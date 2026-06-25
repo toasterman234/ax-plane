@@ -9,17 +9,25 @@ export type EventSink = {
 
 export function createRepositories(db: Database) {
   async function appendRunEvent(runId: string, type: ControlEventType, payload: Record<string, unknown> = {}) {
-    const [row] = await db
-      .select({ nextSeq: sql<number>`coalesce(max(${runEvents.seq}), -1) + 1` })
-      .from(runEvents)
-      .where(eq(runEvents.runId, runId));
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const [row] = await db
+        .select({ nextSeq: sql<number>`coalesce(max(${runEvents.seq}), -1) + 1` })
+        .from(runEvents)
+        .where(eq(runEvents.runId, runId));
 
-    const seq = Number(row?.nextSeq ?? 0);
-    const [inserted] = await db
-      .insert(runEvents)
-      .values({ runId, seq, type, payloadJson: payload })
-      .returning();
-    return inserted;
+      const seq = Number(row?.nextSeq ?? 0);
+      try {
+        const [inserted] = await db
+          .insert(runEvents)
+          .values({ runId, seq, type, payloadJson: payload })
+          .returning();
+        return inserted;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes('run_events_run_seq_idx') || attempt === 4) throw error;
+      }
+    }
+    throw new Error('Failed to append run event after retries');
   }
 
 
@@ -73,7 +81,71 @@ export function createRepositories(db: Database) {
         return version;
       }
 
-      return existingCurrent[0];
+      const [version] = await db
+        .update(agentVersions)
+        .set({
+          signature: config.signature,
+          configJson: config.configJson,
+        })
+        .where(eq(agentVersions.id, existingCurrent[0]!.id))
+        .returning();
+      return version;
+    },
+
+    async updateAgent(agentId: string, patch: { name?: string; description?: string; enabled?: boolean }) {
+      const values: Record<string, unknown> = { updatedAt: new Date() };
+      if (patch.name !== undefined) values.name = patch.name;
+      if (patch.description !== undefined) values.description = patch.description;
+      if (patch.enabled !== undefined) values.enabled = patch.enabled;
+      const [agent] = await db.update(agents).set(values).where(eq(agents.id, agentId)).returning();
+      return agent;
+    },
+
+    async listAgentVersions(agentId: string) {
+      return db
+        .select()
+        .from(agentVersions)
+        .where(eq(agentVersions.agentId, agentId))
+        .orderBy(desc(agentVersions.version));
+    },
+
+    async getAgentVersion(versionId: string) {
+      const [version] = await db.select().from(agentVersions).where(eq(agentVersions.id, versionId)).limit(1);
+      return version;
+    },
+
+    async saveAgentVersion(agentId: string, input: { signature: string; configJson: unknown }) {
+      const [maxRow] = await db
+        .select({ maxVersion: sql<number>`coalesce(max(${agentVersions.version}), 0)` })
+        .from(agentVersions)
+        .where(eq(agentVersions.agentId, agentId));
+      const nextVersion = Number(maxRow?.maxVersion ?? 0) + 1;
+
+      await db
+        .update(agentVersions)
+        .set({ isCurrent: false })
+        .where(and(eq(agentVersions.agentId, agentId), eq(agentVersions.isCurrent, true)));
+
+      const [version] = await db
+        .insert(agentVersions)
+        .values({
+          agentId,
+          version: nextVersion,
+          signature: input.signature,
+          configJson: input.configJson,
+          isCurrent: true,
+        })
+        .returning();
+
+      const config = input.configJson as { name?: string; description?: string };
+      const agentPatch: Record<string, unknown> = { updatedAt: new Date() };
+      if (config.name) agentPatch.name = config.name;
+      if (config.description !== undefined) agentPatch.description = config.description;
+      if (Object.keys(agentPatch).length > 1) {
+        await db.update(agents).set(agentPatch).where(eq(agents.id, agentId));
+      }
+
+      return version;
     },
 
     async listAgents() {
@@ -94,10 +166,43 @@ export function createRepositories(db: Database) {
       return version;
     },
 
-    async createRequest(input: { body: string; agentId: string }) {
+    async listRoutableAgents() {
+      const rows = await db.select().from(agents).where(eq(agents.enabled, true)).orderBy(asc(agents.name));
+      return Promise.all(rows.map(async (agent) => {
+        const version = await this.getCurrentAgentVersion(agent.id);
+        return {
+          id: agent.id,
+          name: agent.name,
+          description: agent.description,
+          enabled: agent.enabled,
+          configJson: version?.configJson ?? { id: agent.id, name: agent.name, signature: version?.signature ?? '' },
+        };
+      }));
+    },
+
+    async createRequest(input: { body: string; agentId: string; routeDecision: unknown }) {
       const [request] = await db
         .insert(requests)
-        .values({ body: input.body, agentId: input.agentId, routeDecisionJson: { selectedAgentId: input.agentId, reason: 'MVP default route' } })
+        .values({
+          body: input.body,
+          agentId: input.agentId,
+          status: 'routed',
+          routeDecisionJson: input.routeDecision,
+        })
+        .returning();
+      return request;
+    },
+
+    async updateRequestRoute(requestId: string, routeDecision: unknown, agentId: string) {
+      const [request] = await db
+        .update(requests)
+        .set({
+          agentId,
+          routeDecisionJson: routeDecision,
+          status: 'routed',
+          updatedAt: new Date(),
+        })
+        .where(eq(requests.id, requestId))
         .returning();
       return request;
     },
@@ -117,10 +222,14 @@ export function createRepositories(db: Database) {
           agentId: input.agentId,
           agentVersionId: version?.id,
           status: 'queued',
-          inputJson: { request: request.body },
+          inputJson: { taskText: request.body },
         })
         .returning();
-      await appendRunEvent(run.id, 'run.queued', { requestId: input.requestId, agentId: input.agentId });
+      await appendRunEvent(run.id, 'run.queued', {
+        requestId: input.requestId,
+        agentId: input.agentId,
+        routeDecision: request.routeDecisionJson,
+      });
       return run;
     },
 
@@ -134,8 +243,65 @@ export function createRepositories(db: Database) {
       return run;
     },
 
+    async patchRunInputJson(runId: string, patch: Record<string, unknown>) {
+      const run = await this.getRun(runId);
+      if (!run) throw new Error(`Run not found: ${runId}`);
+      const inputJson = {
+        ...(typeof run.inputJson === 'object' && run.inputJson !== null ? run.inputJson as Record<string, unknown> : {}),
+        ...patch,
+      };
+      const [updated] = await db.update(runs).set({ inputJson, updatedAt: new Date() }).where(eq(runs.id, runId)).returning();
+      return updated;
+    },
+
+    async clearRunResume(runId: string) {
+      const run = await this.getRun(runId);
+      if (!run) return;
+      const inputJson = {
+        ...(typeof run.inputJson === 'object' && run.inputJson !== null ? run.inputJson as Record<string, unknown> : {}),
+      };
+      delete inputJson.resume;
+      await db.update(runs).set({ inputJson, updatedAt: new Date() }).where(eq(runs.id, runId));
+    },
+
+    async getToolCall(id: string) {
+      const [toolCall] = await db.select().from(toolCalls).where(eq(toolCalls.id, id)).limit(1);
+      return toolCall;
+    },
+
+    async listToolCallsForRun(runId: string) {
+      return db.select().from(toolCalls).where(eq(toolCalls.runId, runId)).orderBy(asc(toolCalls.createdAt));
+    },
+
+    async findCompletedToolCall(runId: string, qualifiedName: string, argsJson: Record<string, unknown>) {
+      const rows = await this.listToolCallsForRun(runId);
+      return rows.find((row) =>
+        row.qualifiedName === qualifiedName
+        && row.status === 'completed'
+        && JSON.stringify(row.argsJson) === JSON.stringify(argsJson),
+      );
+    },
+
+    async findPendingApprovalForTool(runId: string, toolName: string) {
+      const [approval] = await db
+        .select()
+        .from(approvals)
+        .where(and(eq(approvals.runId, runId), eq(approvals.toolName, toolName), eq(approvals.status, 'pending')))
+        .limit(1);
+      return approval;
+    },
+
     async listRuns() {
       return db.select().from(runs).orderBy(desc(runs.createdAt)).limit(100);
+    },
+
+    async claimQueuedRun(runId: string) {
+      const [run] = await db
+        .update(runs)
+        .set({ status: 'running', startedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(runs.id, runId), eq(runs.status, 'queued')))
+        .returning();
+      return run;
     },
 
     async listQueuedRuns(limit = 5) {
@@ -199,8 +365,25 @@ export function createRepositories(db: Database) {
       if (approval) {
         await appendRunEvent(approval.runId, status === 'approved' ? 'approval.approved' : 'approval.rejected', { approvalId: id, toolName: approval.toolName });
         if (status === 'approved') {
-          await setRunStatus(approval.runId, 'queued');
-          await appendRunEvent(approval.runId, 'run.queued', { reason: 'approval approved; retrying run' });
+          const requested = (approval.requestedActionJson ?? {}) as { args?: Record<string, unknown> };
+          const run = await this.getRun(approval.runId);
+          const base = typeof run?.inputJson === 'object' && run?.inputJson !== null
+            ? run.inputJson as Record<string, unknown>
+            : {};
+          await db.update(runs).set({
+            status: 'queued',
+            updatedAt: new Date(),
+            inputJson: {
+              ...base,
+              resume: {
+                approvalId: id,
+                toolCallId: approval.toolCallId,
+                qualifiedName: approval.toolName,
+                toolArgs: requested.args ?? {},
+              },
+            },
+          }).where(eq(runs.id, approval.runId));
+          await appendRunEvent(approval.runId, 'run.queued', { reason: 'resuming after approval', resume: true, approvalId: id });
         } else {
           await setRunStatus(approval.runId, 'failed', { error: `Approval rejected for ${approval.toolName}` });
           await appendRunEvent(approval.runId, 'run.failed', { reason: `Approval rejected for ${approval.toolName}` });

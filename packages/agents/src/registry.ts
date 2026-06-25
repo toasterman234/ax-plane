@@ -2,7 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { AgentConfigSchema, type AgentConfig, type ToolDescriptor } from './schema';
+import { HOST_TOOL_CATALOG } from '@axplane/host-tools';
+import {
+  AgentConfigSchema,
+  AgentMetadataUpdateSchema,
+  KNOWN_POLICIES,
+  SaveAgentVersionSchema,
+  parseAgentConfigJson,
+  type AgentConfig,
+  type AgentMetadataUpdate,
+  type SaveAgentVersionInput,
+  type ToolDescriptor,
+} from './schema';
+
+export { AgentConfigSchema, AgentMetadataUpdateSchema, SaveAgentVersionSchema, KNOWN_POLICIES, parseAgentConfigJson };
+export type { AgentConfig, AgentMetadataUpdate, SaveAgentVersionInput, ToolDescriptor };
 
 export function loadAgentConfig(filePath = path.resolve(process.cwd(), 'packages/agents/config/demo-agent.yaml')): AgentConfig {
   const raw = fs.readFileSync(filePath, 'utf8');
@@ -28,31 +42,21 @@ export function getDemoAgentConfig(): AgentConfig {
     description: 'Fallback in-memory demo agent config.',
     runtime: 'ax',
     mode: 'rlm',
-    signature: 'request:string -> answer:string, nextActions:string[]',
-    contextFields: ['request'],
-    tools: ['fake.projectLookup', 'fake.riskyAction'],
-    policies: ['fake_risky_action_requires_approval'],
+    signature: 'taskText:string "the user task" -> answer:string, nextActions:string[]',
+    contextFields: ['taskText'],
+    tools: HOST_TOOL_CATALOG.map((tool) => tool.qualifiedName),
+    policies: ['write_tool_requires_approval'],
   });
 }
 
-export const demoToolDescriptors: ToolDescriptor[] = [
-  {
-    qualifiedName: 'fake.projectLookup',
-    namespace: 'fake',
-    name: 'projectLookup',
-    description: 'Return deterministic fake project context for the request.',
-    risk: 'safe',
-    args: { query: 'string' },
-  },
-  {
-    qualifiedName: 'fake.riskyAction',
-    namespace: 'fake',
-    name: 'riskyAction',
-    description: 'Fake side-effecting action used to test approval gates. It does not touch external systems.',
-    risk: 'risky',
-    args: { reason: 'string' },
-  },
-];
+export const demoToolDescriptors = HOST_TOOL_CATALOG.map((tool) => ({
+  qualifiedName: tool.qualifiedName,
+  namespace: tool.namespace,
+  name: tool.name,
+  description: tool.description,
+  risk: tool.risk,
+  args: tool.parameters,
+}));
 
 export function getToolDescriptor(qualifiedName: string) {
   return demoToolDescriptors.find((tool) => tool.qualifiedName === qualifiedName);

@@ -4,6 +4,7 @@ export const ControlEventTypeSchema = z.enum([
   'request.created',
   'request.classified',
   'run.queued',
+  'run.resumed',
   'run.started',
   'run.status',
   'ax.actor_turn',
@@ -13,6 +14,7 @@ export const ControlEventTypeSchema = z.enum([
   'ax.function_call.blocked',
   'ax.function_call.approval_required',
   'ax.function_call.completed',
+  'ax.function_call.reused',
   'ax.chat_log.captured',
   'ax.usage.captured',
   'ax.traces.captured',
@@ -51,13 +53,14 @@ export type ControlEvent = z.infer<typeof ControlEventSchema>;
 
 export const CreateRequestSchema = z.object({
   body: z.string().min(1),
-  agentId: z.string().min(1).default('demo_ax_agent'),
+  agentId: z.string().min(1).optional(),
+  autoStart: z.boolean().default(false),
 });
 export type CreateRequest = z.infer<typeof CreateRequestSchema>;
 
 export const CreateRunSchema = z.object({
   requestId: z.string().uuid(),
-  agentId: z.string().min(1),
+  agentId: z.string().min(1).optional(),
 });
 export type CreateRun = z.infer<typeof CreateRunSchema>;
 

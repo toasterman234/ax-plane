@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { AppStatusBanner } from '@/components/app-status-banner';
 
 export const metadata: Metadata = {
   title: 'AxPlane MVP',
@@ -33,7 +34,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 ))}
               </nav>
             </aside>
-            <main className="p-6">{children}</main>
+            <main className="p-6">
+              <AppStatusBanner />
+              {children}
+            </main>
           </div>
         </Providers>
       </body>

@@ -38,6 +38,12 @@ importers:
       '@axplane/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@axplane/router':
+        specifier: workspace:*
+        version: link:../../packages/router
+      '@axplane/runtime-dev':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dev
       '@hono/node-server':
         specifier: ^1.13.8
         version: 1.19.14(hono@4.12.27)
@@ -118,6 +124,9 @@ importers:
       '@axplane/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@axplane/runtime-dev':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dev
     devDependencies:
       tsx:
         specifier: ^4.19.2
@@ -131,6 +140,9 @@ importers:
 
   packages/agents:
     dependencies:
+      '@axplane/host-tools':
+        specifier: workspace:*
+        version: link:../host-tools
       js-yaml:
         specifier: ^4.1.0
         version: 4.2.0
@@ -162,6 +174,9 @@ importers:
       '@axplane/events':
         specifier: workspace:*
         version: link:../events
+      '@axplane/host-tools':
+        specifier: workspace:*
+        version: link:../host-tools
       '@axplane/policy':
         specifier: workspace:*
         version: link:../policy
@@ -178,6 +193,9 @@ importers:
       '@axplane/events':
         specifier: workspace:*
         version: link:../events
+      '@axplane/host-tools':
+        specifier: workspace:*
+        version: link:../host-tools
       drizzle-orm:
         specifier: ^0.38.4
         version: 0.38.4(@opentelemetry/api@1.9.1)(@types/react@19.2.17)(postgres@3.4.9)(react@19.2.7)
@@ -214,11 +232,48 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)
 
+  packages/host-tools:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
   packages/policy:
     dependencies:
       zod:
         specifier: ^3.24.1
         version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
+  packages/router:
+    dependencies:
+      '@axplane/agents':
+        specifier: workspace:*
+        version: link:../agents
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)
+
+  packages/runtime-dev:
     devDependencies:
       typescript:
         specifier: ^5.7.3

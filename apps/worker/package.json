@@ -12,7 +12,8 @@
   "dependencies": {
     "@axplane/db": "workspace:*",
     "@axplane/agents": "workspace:*",
-    "@axplane/ax-adapter": "workspace:*"
+    "@axplane/ax-adapter": "workspace:*",
+    "@axplane/runtime-dev": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.2",

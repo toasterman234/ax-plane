@@ -1,13 +1,71 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { API_URL, api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
+import {
+  deriveActorTurns,
+  deriveApprovals,
+  deriveToolCalls,
+  latestPayload,
+  statusTone,
+  toolStatusTone,
+  approvalStatusTone,
+  type RunEvent,
+} from './run-detail-derive';
 
-type Run = { id: string; status: string; inputJson: unknown; outputJson?: unknown; error?: string };
-type RunEvent = { id: string; runId: string; seq: number; type: string; payloadJson: unknown; createdAt: string };
+type Run = {
+  id: string;
+  status: string;
+  inputJson: unknown;
+  outputJson?: unknown;
+  error?: string;
+  agentId?: string;
+  createdAt?: string;
+};
 
 type RunResponse = { run: Run; events: RunEvent[] };
+
+function JsonBlock({ value }: { value: unknown }) {
+  if (value === undefined || value === null) return <p className="text-sm text-slate-500">—</p>;
+  return (
+    <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-300">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card>
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-4 text-left"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+        </div>
+        <span className="text-xs text-slate-500">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open ? <div className="mt-4">{children}</div> : null}
+    </Card>
+  );
+}
 
 export function RunDetail({ runId }: { runId: string }) {
   const [run, setRun] = useState<Run | null>(null);
@@ -24,7 +82,9 @@ export function RunDetail({ runId }: { runId: string }) {
     const source = new EventSource(`${API_URL}/runs/${runId}/stream`);
     source.onmessage = (message) => {
       const event = JSON.parse(message.data) as RunEvent;
-      setEvents((current) => current.some((e) => e.id === event.id) ? current : [...current, event].sort((a, b) => a.seq - b.seq));
+      setEvents((current) =>
+        current.some((e) => e.id === event.id) ? current : [...current, event].sort((a, b) => a.seq - b.seq),
+      );
       if (['run.completed', 'run.failed', 'run.cancelled', 'run.status'].includes(event.type)) {
         api<RunResponse>(`/runs/${runId}`).then((data) => setRun(data.run)).catch(() => undefined);
       }
@@ -32,45 +92,223 @@ export function RunDetail({ runId }: { runId: string }) {
     return () => source.close();
   }, [runId]);
 
-  const latestStatus = useMemo(() => run?.status ?? 'loading', [run]);
+  const status = run?.status ?? 'loading';
+  const toolCalls = useMemo(() => deriveToolCalls(events), [events]);
+  const approvals = useMemo(() => deriveApprovals(events), [events]);
+  const actorTurns = useMemo(() => deriveActorTurns(events), [events]);
+  const chatLog = latestPayload(events, 'ax.chat_log.captured')?.chatLog;
+  const usage = latestPayload(events, 'ax.usage.captured');
+  const traces = latestPayload(events, 'ax.traces.captured')?.traces;
+
+  const output = run?.outputJson ?? latestPayload(events, 'run.completed')?.output;
+  const inputRequest =
+    run?.inputJson && typeof run.inputJson === 'object' && run.inputJson !== null
+      ? String((run.inputJson as { taskText?: unknown; request?: unknown }).taskText
+          ?? (run.inputJson as { request?: unknown }).request
+          ?? '')
+      : null;
+
+  const statusMessages = events.filter((e) => e.type === 'run.status');
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Run timeline</h1>
-        <p className="font-mono text-sm text-slate-500">{runId}</p>
-      </div>
-      <Card>
-        <div className="flex items-center justify-between">
-          <div>Status</div>
-          <div className="rounded-full border border-slate-700 px-3 py-1 text-sm">{latestStatus}</div>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Run detail</h1>
+          <p className="font-mono text-sm text-slate-500">{runId}</p>
+          {run?.agentId ? <p className="mt-1 text-sm text-slate-400">agent: {run.agentId}</p> : null}
         </div>
-        {run?.error ? <p className="mt-3 text-red-300">{run.error}</p> : null}
-        {run?.outputJson ? <pre className="mt-3 rounded-md bg-slate-900 p-3 text-xs">{JSON.stringify(run.outputJson, null, 2)}</pre> : null}
-      </Card>
-      <div className="space-y-3">
-        {events.map((event) => <EventCard key={event.id} event={event} />)}
+        <div className="flex items-center gap-3">
+          <span className={`rounded-full border px-3 py-1 text-sm font-medium ${statusTone(status)}`}>{status}</span>
+          {status === 'needs_approval' ? (
+            <Link
+              href="/approvals"
+              className="rounded-md bg-white px-3 py-2 text-sm font-medium text-slate-950 hover:bg-slate-200"
+            >
+              Review approvals
+            </Link>
+          ) : null}
+        </div>
       </div>
+
+      <Section title="Final output" subtitle="What the run produced when it finished.">
+        {run?.error ? <p className="text-red-300">{run.error}</p> : null}
+        {output && typeof output === 'object' && output !== null && 'answer' in output ? (
+          <div className="space-y-3">
+            <p className="text-base leading-relaxed text-slate-100">{String((output as { answer: unknown }).answer)}</p>
+            {'nextActions' in output && Array.isArray((output as { nextActions: unknown }).nextActions) ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Suggested next actions</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
+                  {((output as { nextActions: string[] }).nextActions).map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : output ? (
+          <JsonBlock value={output} />
+        ) : (
+          <p className="text-sm text-slate-500">
+            {status === 'running' || status === 'queued' ? 'Run still in progress…' : 'No final output yet.'}
+          </p>
+        )}
+      </Section>
+
+      <Section title="Status" subtitle="Run lifecycle and pause points.">
+        {inputRequest ? (
+          <div className="mb-4 rounded-md border border-slate-800 bg-slate-900/50 p-3">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Input request</p>
+            <p className="mt-1 text-sm text-slate-200">{inputRequest}</p>
+          </div>
+        ) : null}
+        {statusMessages.length === 0 ? (
+          <p className="text-sm text-slate-500">No status transitions recorded yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {events.filter((e) => e.type === 'run.resumed').map((event) => (
+              <li key={event.id} className="flex items-start gap-3 text-sm text-emerald-300">
+                <span className="font-mono text-xs text-slate-500">#{event.seq}</span>
+                <span>Resumed after approval (no full rerun)</span>
+              </li>
+            ))}
+            {statusMessages.map((event) => {
+              const p = (event.payloadJson ?? {}) as Record<string, unknown>;
+              return (
+                <li key={event.id} className="flex items-start gap-3 text-sm">
+                  <span className="font-mono text-xs text-slate-500">#{event.seq}</span>
+                  <div>
+                    <span className="font-medium text-slate-200">{String(p.status ?? p.message ?? 'status update')}</span>
+                    {p.approvalId ? <p className="text-xs text-slate-500">approval: {String(p.approvalId)}</p> : null}
+                    {p.message && p.status ? <p className="text-slate-400">{String(p.message)}</p> : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Section>
+
+      <Section title="Tool calls" subtitle={`${toolCalls.length} tool invocation(s)`}>
+        {toolCalls.length === 0 ? (
+          <p className="text-sm text-slate-500">No tool calls yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {toolCalls.map((tool) => (
+              <div key={tool.id} className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-sm text-slate-100">{tool.name}</span>
+                  <span className={`text-xs font-medium uppercase ${toolStatusTone(tool.status)}`}>{tool.status}</span>
+                </div>
+                {tool.args !== undefined ? (
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-500">Args</p>
+                    <JsonBlock value={tool.args} />
+                  </div>
+                ) : null}
+                {tool.result !== undefined ? (
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-500">Result</p>
+                    <JsonBlock value={tool.result} />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Approval gates" subtitle={`${approvals.length} approval event(s)`}>
+        {approvals.length === 0 ? (
+          <p className="text-sm text-slate-500">No approval gates triggered.</p>
+        ) : (
+          <ul className="space-y-3">
+            {approvals.map((row, i) => (
+              <li key={`${row.seq}-${i}`} className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-sm">{row.toolName}</span>
+                  <span className={`text-xs font-medium uppercase ${approvalStatusTone(row.status)}`}>{row.status}</span>
+                </div>
+                {row.reason ? <p className="mt-2 text-sm text-slate-300">{row.reason}</p> : null}
+                {row.id ? <p className="mt-1 font-mono text-xs text-slate-500">{row.id}</p> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Section title="Actor turns" subtitle={`${actorTurns.length} Ax actor step(s)`}>
+        {actorTurns.length === 0 ? (
+          <p className="text-sm text-slate-500">No actor turns yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {actorTurns.map((turn) => (
+              <div key={turn.seq} className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-mono text-xs text-slate-500">#{turn.seq}</span>
+                  {turn.stage ? <span className="rounded-full border border-violet-700 px-2 py-0.5 text-xs text-violet-200">{turn.stage}</span> : null}
+                  {turn.turn !== undefined ? <span className="text-slate-400">turn {turn.turn}</span> : null}
+                </div>
+                {turn.javascriptCode ? (
+                  <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-black/40 p-3 font-mono text-xs text-violet-100">{turn.javascriptCode}</pre>
+                ) : null}
+                {turn.result !== undefined ? (
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-500">Result</p>
+                    <JsonBlock value={turn.result} />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Usage" subtitle="Token and staged usage captured from Ax." defaultOpen={false}>
+        {usage ? <JsonBlock value={usage} /> : <p className="text-sm text-slate-500">No usage captured yet.</p>}
+      </Section>
+
+      <Section title="Chat log" subtitle="Messages captured from the agent session." defaultOpen={false}>
+        {chatLog ? (
+          <div className="space-y-2">
+            {Array.isArray(chatLog) ? (
+              chatLog.map((entry, i) => {
+                const row = entry as { role?: string; content?: string };
+                return (
+                  <div key={i} className="rounded-md border border-slate-800 p-3">
+                    <p className="text-xs uppercase text-slate-500">{row.role ?? 'message'}</p>
+                    <p className="mt-1 text-sm text-slate-200">{row.content}</p>
+                  </div>
+                );
+              })
+            ) : (
+              <JsonBlock value={chatLog} />
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No chat log yet.</p>
+        )}
+      </Section>
+
+      <Section title="Traces" subtitle="Observability traces from the run." defaultOpen={false}>
+        {traces ? <JsonBlock value={traces} /> : <p className="text-sm text-slate-500">No traces yet.</p>}
+      </Section>
+
+      <Section title="Raw event log" subtitle={`${events.length} durable event(s) — full timeline`} defaultOpen={false}>
+        <div className="space-y-2">
+          {events.map((event) => (
+            <details key={event.id} className="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+              <summary className="cursor-pointer text-sm">
+                <span className="font-mono text-xs text-slate-500">#{event.seq}</span>{' '}
+                <span className="text-slate-200">{event.type}</span>{' '}
+                <span className="text-xs text-slate-500">{new Date(event.createdAt).toLocaleTimeString()}</span>
+              </summary>
+              <JsonBlock value={event.payloadJson} />
+            </details>
+          ))}
+        </div>
+      </Section>
     </div>
-  );
-}
-
-function EventCard({ event }: { event: RunEvent }) {
-  const badge = event.type.startsWith('ax.function_call') ? 'border-amber-600 text-amber-200'
-    : event.type.startsWith('approval') ? 'border-sky-600 text-sky-200'
-    : event.type.startsWith('run.failed') ? 'border-red-600 text-red-200'
-    : 'border-slate-700 text-slate-200';
-
-  return (
-    <Card>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-slate-500">#{event.seq}</span>
-          <span className={`rounded-full border px-2 py-1 text-xs ${badge}`}>{event.type}</span>
-        </div>
-        <span className="text-xs text-slate-500">{new Date(event.createdAt).toLocaleTimeString()}</span>
-      </div>
-      <pre className="mt-3 rounded-md bg-slate-900 p-3 text-xs text-slate-300">{JSON.stringify(event.payloadJson, null, 2)}</pre>
-    </Card>
   );
 }

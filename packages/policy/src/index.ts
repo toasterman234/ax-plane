@@ -28,17 +28,24 @@ export function evaluatePolicy(invocation: ToolInvocation): PolicyResult {
     };
   }
 
-  if (name === 'fake.riskyAction' || invocation.risk === 'risky') {
+  const risky =
+    invocation.risk === 'risky'
+    || name === 'fake.riskyAction'
+    || name === 'repo.writeFile'
+    || name === 'shell.run'
+    || name.startsWith('github.create');
+
+  if (risky) {
     return {
       decision: 'approval_required',
-      reason: `${name} is marked risky and requires a human approval gate before execution.`,
-      policyId: 'fake_risky_action_requires_approval',
+      reason: `${name} is a write or side-effecting tool and requires human approval before execution.`,
+      policyId: 'write_tool_requires_approval',
     };
   }
 
   return {
     decision: 'allow',
-    reason: 'No blocking or approval-required policy matched.',
+    reason: 'Read-only tool or no blocking policy matched.',
     policyId: 'default_allow',
   };
 }

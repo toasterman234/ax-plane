@@ -1,4 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8797';
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
