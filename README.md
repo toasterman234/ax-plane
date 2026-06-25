@@ -145,8 +145,22 @@ Submit a request without picking an agent — the router classifies it:
 |----------|------|
 | `keyword` | Request body matches an agent's routing keywords |
 | `default` | No keyword match → agent marked `routing.isDefault` |
+| `llm` | Model classifier picks the best agent from the catalog |
 | `explicit` | You force an agent on submit |
 | `manual_override` | You change agent before starting a run |
+
+Set `AXPLANE_ROUTER_MODE`:
+
+| Mode | Behavior |
+|------|----------|
+| `keyword` | Legacy keyword + default routing (default) |
+| `llm` | Always classify with LLM (mock heuristic when `AXPLANE_EXECUTION_MODE=mock`) |
+| `hybrid` | Keywords first; if no match, LLM classifier |
+
+```env
+AXPLANE_ROUTER_MODE=hybrid
+AX_ROUTER_MODEL=gemini-3-flash   # optional; defaults to AX_MODEL
+```
 
 Configure keywords per agent in **Agents → Edit config → Routing**.
 

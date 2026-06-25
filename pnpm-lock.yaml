@@ -355,6 +355,9 @@ importers:
 
   packages/router:
     dependencies:
+      '@ax-llm/ax':
+        specifier: ^22.0.7
+        version: 22.0.7(zod@3.25.76)
       '@axplane/agents':
         specifier: workspace:*
         version: link:../agents

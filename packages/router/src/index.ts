@@ -1,10 +1,13 @@
 import { z } from 'zod';
-import { parseAgentConfigJson } from '@axplane/agents';
+import { llmRouteRequest } from './llm-router';
+import { resolveRouterMode, type RouterMode } from './resolve-router-mode';
+import { routingConfig } from './routing-utils';
 
 export const RouteStrategySchema = z.enum([
   'explicit',
   'keyword',
   'default',
+  'llm',
   'manual_override',
 ]);
 
@@ -39,19 +42,6 @@ export type RoutableAgent = {
 };
 
 const FALLBACK_DEFAULT_AGENT_ID = 'demo_ax_agent';
-
-function routingConfig(configJson: unknown) {
-  try {
-    const config = parseAgentConfigJson(
-      typeof configJson === 'object' && configJson !== null && 'id' in (configJson as object)
-        ? configJson
-        : { id: 'unknown', name: 'Unknown', signature: 'taskText:string -> answer:string', ...(configJson as object) },
-    );
-    return config.routing ?? { keywords: [], priority: 0, isDefault: false };
-  } catch {
-    return { keywords: [], priority: 0, isDefault: false };
-  }
-}
 
 function scoreAgent(body: string, agent: RoutableAgent): RouteCandidate {
   const routing = routingConfig(agent.configJson);
@@ -130,6 +120,43 @@ export function routeRequest(input: {
   };
 }
 
+export async function routeRequestAsync(input: {
+  body: string;
+  agents: RoutableAgent[];
+  explicitAgentId?: string;
+  mode?: 'mock' | 'real';
+  routerMode?: RouterMode;
+}): Promise<RouteDecision> {
+  const routerMode = input.routerMode ?? resolveRouterMode();
+  const enabled = input.agents.filter((agent) => agent.enabled);
+
+  if (input.explicitAgentId) {
+    return routeRequest({ ...input, agents: enabled });
+  }
+
+  if (routerMode === 'keyword') {
+    return routeRequest({ ...input, agents: enabled });
+  }
+
+  const mode = input.mode ?? (process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock');
+
+  if (routerMode === 'llm') {
+    return llmRouteRequest({ body: input.body, agents: enabled, mode });
+  }
+
+  const keywordDecision = routeRequest({ ...input, agents: enabled });
+  if (keywordDecision.strategy !== 'default') {
+    return keywordDecision;
+  }
+
+  try {
+    return await llmRouteRequest({ body: input.body, agents: enabled, mode });
+  } catch (error) {
+    if (mode === 'real') throw error;
+    return keywordDecision;
+  }
+}
+
 export function manualOverrideDecision(input: {
   previousAgentId: string;
   selectedAgentId: string;
@@ -144,3 +171,8 @@ export function manualOverrideDecision(input: {
     candidates: [],
   };
 }
+
+export { resolveRouterMode } from './resolve-router-mode';
+export type { RouterMode } from './resolve-router-mode';
+export { mockLlmRouteRequest, llmRouteRequest, buildAgentCatalog } from './llm-router';
+export { routingConfig } from './routing-utils';

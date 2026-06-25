@@ -72,7 +72,13 @@ web → API → worker → @axplane/runtime → @axplane/ax-adapter → guardedH
 ### Step I — not built yet
 
 - Scheduling (cron / delayed runs)
-- LLM-based request routing (today: keyword + default + explicit only)
+
+### Request routing
+
+| Slice | Deliverable | Status |
+|-------|-------------|--------|
+| **Keyword router** | keywords, default, explicit, manual override | ✅ |
+| **LLM router** | `AXPLANE_ROUTER_MODE=llm\|hybrid`, mock + real classifier | ✅ |
 
 ### Test / build status (last run)
 
@@ -429,6 +435,5 @@ You inherit a **working MVP control plane** through **Step I** (memory, eval, gr
 
 1. **Governed pi runtime** — implement `piRuntimeAdapter` against `~/Projects/pi`
 2. **Scheduling** — delayed/cron run enqueue
-3. **LLM routing** — replace keyword-only router with optional model-based classification
 
 **Start here:** read this file → `README.md` → `pnpm db:migrate` → confirm `8797/health` → open **http://localhost:3010** → walk §11 happy path.

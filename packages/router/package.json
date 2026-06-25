@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ax-llm/ax": "^22.0.7",
     "@axplane/agents": "workspace:*",
     "zod": "^3.24.1"
   },

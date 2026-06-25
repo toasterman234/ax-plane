@@ -18,7 +18,7 @@ import {
   getDemoAgentConfig,
   parseAgentConfigJson,
 } from '@axplane/agents';
-import { manualOverrideDecision, routeRequest } from '@axplane/router';
+import { manualOverrideDecision, resolveRouterMode, routeRequest, routeRequestAsync } from '@axplane/router';
 import { readWorkerHealth } from '@axplane/runtime-dev';
 import { runAgentForConfig } from '@axplane/runtime';
 import { DEMO_EVAL_SUITE, executeEvalRun, type EvalRunSummary } from '@axplane/eval';
@@ -88,7 +88,14 @@ app.onError((err, c) => {
 
 async function classifyRequest(body: string, explicitAgentId?: string) {
   const agents = await repo.listRoutableAgents();
-  return routeRequest({ body, agents, explicitAgentId });
+  const mode = process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock';
+  return routeRequestAsync({
+    body,
+    agents,
+    explicitAgentId,
+    mode,
+    routerMode: resolveRouterMode(),
+  });
 }
 
 app.get('/health', (c) => {
@@ -97,6 +104,10 @@ app.get('/health', (c) => {
     ok: true,
     service: 'axplane-api',
     worker,
+    router: {
+      mode: resolveRouterMode(),
+      executionMode: process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock',
+    },
   });
 });
 

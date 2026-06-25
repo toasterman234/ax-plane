@@ -96,7 +96,7 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Requests</h1>
-        <p className="text-slate-400">Submit work — the router picks an agent from keywords or defaults.</p>
+        <p className="text-slate-400">Submit work — the router picks an agent via keywords, optional LLM routing, or defaults.</p>
       </div>
 
       <Card className="space-y-4">
