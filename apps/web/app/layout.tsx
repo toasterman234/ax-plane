@@ -6,8 +6,8 @@ import { Providers } from '@/components/providers';
 import { AppStatusBanner } from '@/components/app-status-banner';
 
 export const metadata: Metadata = {
-  title: 'AxPlane MVP',
-  description: 'Local-first Ax LLM control plane MVP',
+  title: 'Ax Plane',
+  description: 'Local-first control plane for @ax-llm/ax — runs, approvals, eval, workflows',
 };
 
 const nav = [
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <div className="min-h-screen grid grid-cols-[220px_1fr] bg-background">
             <aside className="border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
-              <div className="mb-6 text-xl font-semibold text-sidebar-primary">AxPlane</div>
+              <div className="mb-6 text-xl font-semibold text-sidebar-primary">Ax Plane</div>
               <nav className="space-y-1">
                 {nav.map(([href, label]) => (
                   <Link

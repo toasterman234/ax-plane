@@ -5,8 +5,8 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">AxPlane MVP</h1>
-        <p className="mt-2 text-muted-foreground">A local-first control plane around Ax runs, events, and approvals.</p>
+        <h1 className="text-3xl font-bold">Ax Plane</h1>
+        <p className="mt-2 text-muted-foreground">Local-first control plane for Ax runs, events, and approvals.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
