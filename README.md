@@ -27,9 +27,17 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
 | :---: | :---: |
 | <img src="docs/screenshots/agents.png" alt="Agent registry and config" width="440" /> | <img src="docs/screenshots/run-detail.png" alt="Run detail with output and tool calls" width="440" /> |
 
-| Approvals queue | Workflows |
+| Approvals queue | Workflows hub |
 | :---: | :---: |
-| <img src="docs/screenshots/operations-approvals.png" alt="Human approval queue for side-effect tools" width="440" /> | <img src="docs/screenshots/workflows.png" alt="Graph workflows and Ax Flow proxy" width="440" /> |
+| <img src="docs/screenshots/operations-approvals.png" alt="Human approval queue for side-effect tools" width="440" /> | <img src="docs/screenshots/workflows.png" alt="Graph workflows hub" width="440" /> |
+
+| Graph workflow canvas | AX Flows (pattern catalog) |
+| :---: | :---: |
+| <img src="docs/screenshots/workflows-canvas.png" alt="Graph workflow topology canvas" width="440" /> | <img src="docs/screenshots/ax-flows.png" alt="AX Flows pattern catalog with live canvas" width="440" /> |
+
+| AX Dispatcher (team orchestrator) | Eval lab |
+| :---: | :---: |
+| <img src="docs/screenshots/dispatcher.png" alt="AX Dispatcher team orchestrator canvas" width="440" /> | <img src="docs/screenshots/agents-eval.png" alt="Eval suites, runs, and case results" width="440" /> |
 
 More captures: [`docs/screenshots/`](docs/screenshots/) (requests inbox, runs list, agent editor, Forge).
 
