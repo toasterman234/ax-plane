@@ -20,7 +20,7 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/home.png" alt="Ax Plane home — submit a request, watch a run, approve a tool" width="900" />
+  <img src="docs/screenshots/home.png" alt="Ax Plane mission control home — system status, needs attention, setup checklist, and hub navigation" width="900" />
 </p>
 
 | Agents registry | Run detail |
