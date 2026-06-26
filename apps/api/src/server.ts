@@ -19,7 +19,6 @@ import {
   parseAgentConfigJson,
 } from '@axplane/agents';
 import { manualOverrideDecision, resolveRouterMode, routeRequest, routeRequestAsync } from '@axplane/router';
-import { readWorkerHealth } from '@axplane/runtime-dev';
 import { runAgentForConfig } from '@axplane/runtime';
 import {
   SMOKE_EVAL_SUITE,
@@ -43,6 +42,8 @@ import {
 import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY } from '@axplane/flow-canvas';
 import type { HostToolDefinition } from '@axplane/host-tools';
 import { registerForgeRoutes, handleForgeRouteError } from './forge-routes';
+import { buildHealthPayload } from './health-payload';
+import { buildDashboardSummary } from './dashboard-summary';
 
 const CreateHttpToolSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{1,62}$/, 'Tool name must be lowercase slug (e.g. slack_notify)'),
@@ -113,37 +114,11 @@ async function classifyRequest(body: string, explicitAgentId?: string) {
   });
 }
 
-app.get('/health', async (c) => {
-  const worker = readWorkerHealth(Number(process.env.WORKER_HEARTBEAT_STALE_MS ?? 10_000));
-  const axUrls = resolveAxEngineConfig();
-  let axEngine: { reachable: boolean; flowCount: number; url: string; dispatcherAvailable: boolean } = {
-    reachable: false,
-    flowCount: 0,
-    url: axUrls.axServerUrl,
-    dispatcherAvailable: false,
-  };
-  try {
-    const flows = await fetchAllFlowEntries();
-    const dispatcherAvailable = await checkDispatcherReachable();
-    axEngine = {
-      reachable: flows.length > 0 || dispatcherAvailable,
-      flowCount: flows.length,
-      url: axUrls.axServerUrl,
-      dispatcherAvailable,
-    };
-  } catch {
-    // ax-server optional — AxPlane runs without it
-  }
-  return c.json({
-    ok: true,
-    service: 'axplane-api',
-    worker,
-    axEngine,
-    router: {
-      mode: resolveRouterMode(),
-      executionMode: process.env.AXPLANE_EXECUTION_MODE === 'real' ? 'real' : 'mock',
-    },
-  });
+app.get('/health', async (c) => c.json(await buildHealthPayload()));
+
+app.get('/dashboard/summary', async (c) => {
+  const health = await buildHealthPayload();
+  return c.json(await buildDashboardSummary(repo, health));
 });
 
 app.get('/tools', async (c) => c.json(await listAllToolDescriptors()));

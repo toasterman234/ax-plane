@@ -315,6 +315,7 @@ web → API (optional live SSE proxy) → worker → streamAxFlowRun / streamAxD
 
 ```txt
 GET    /health                      # worker heartbeat + axEngine.reachable + dispatcherAvailable
+GET    /dashboard/summary           # Home mission control — health + counts + setup + attention + recent runs
 
 GET    /ax-flows
 GET    /ax-flows/:id/runs           # register BEFORE /ax-flows/:id
