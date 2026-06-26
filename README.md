@@ -116,6 +116,7 @@ Mission control for the stack:
 - **System status** — API, worker, execution mode, ax-server reachability
 - **Needs attention** — pending approvals, blocked runs, recent failures
 - **First-run setup** — checklist (default agent → request → run → approval) with one-click install; collapses to **recent runs** when complete
+- **Quick actions** — inline request submit, approval demo, install sample workflow
 - **Hub map** — Agents, Workflows, Operations, Settings with live counts
 
 Use this page when demoing Ax Plane to someone new or checking what needs action across hubs.
