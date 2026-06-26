@@ -119,6 +119,8 @@ Mission control for the stack:
 - **Quick actions** — inline request submit, approval demo, install sample workflow
 - **Hub map** — Agents, Workflows, Operations, Settings with live counts
 
+Data loads from a single `GET /dashboard/summary` call (health + counts + attention + recent runs).
+
 Use this page when demoing Ax Plane to someone new or checking what needs action across hubs.
 
 ---
