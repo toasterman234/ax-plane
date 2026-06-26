@@ -1,0 +1,60 @@
+name: Owner routing (transfer issues to their owning repo)
+
+# Repo-OWNERSHIP router (issue #105, path B). Deterministic — no model, no spend.
+# Reads the per-repo `owns` map in manifests/repos.json, scores each issue, and on
+# a CONFIDENT single match (owner named in the issue TITLE) transfers the issue to
+# its owning repo. Ambiguous / body-only / control-plane issues stay here, labeled
+# owner:needs-human or owner:keep for a human.
+#
+# Two entry points:
+#   - issues opened/reopened  -> route that one issue
+#   - workflow_dispatch       -> sweep the open backlog (dry_run input previews only)
+#
+# Needs FLEET_WRITE_TOKEN (PAT) — issue transfer requires write on BOTH repos, and
+# the default GITHUB_TOKEN cannot transfer across repos.
+
+on:
+  issues:
+    types: [opened, reopened]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview the backlog routing without applying labels or transferring"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: owner-route-${{ github.event.issue.number || 'sweep' }}
+  cancel-in-progress: false
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Route single issue
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ secrets.FLEET_WRITE_TOKEN }}
+          SELF_REPO: ${{ github.repository }}
+        run: node scripts/route-owner.mjs run "${{ github.event.issue.number }}"
+
+      - name: Sweep backlog
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.FLEET_WRITE_TOKEN }}
+          SELF_REPO: ${{ github.repository }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node scripts/route-owner.mjs sweep --dry-run
+          else
+            node scripts/route-owner.mjs sweep
+          fi
