@@ -72,12 +72,15 @@ flowchart LR
 API: `GET /eval/runs?suiteId=&agentId=&limit=`, `GET /eval/suites/:id/matrix?agentId=&limit=`.
 Package: `@axplane/eval` `buildEvalMatrix`.
 
-### Phase B — Agent Lab comparison upgrade (no schema change)
+### Phase B — Agent Lab comparison upgrade (no schema change) ✅ shipped 2026-06-26
 
-| Viz | Answers |
-|-----|---------|
-| **Multi-metric comparison** | Score, passed %, avg turns, tool mistakes, cost — baseline vs candidate |
-| **Per-case delta table** | Sort cases by `candidateScore − baselineScore` |
+| Viz | Answers | Status |
+|-----|---------|--------|
+| **Multi-metric comparison** | Score, pass rate, turns, tool mistakes, cost | ✅ grouped bars in Agent Lab |
+| **Per-case delta table** | Sort cases by score delta; flag regressions | ✅ sortable table + run links |
+
+Package: `@axplane/eval` `buildCaseComparisonRows`, `comparisonMetrics`.
+Components: `metric-comparison-chart.tsx`, `per-case-delta-table.tsx`.
 
 Uses existing `buildEvalComparison()` + eval run case results.
 

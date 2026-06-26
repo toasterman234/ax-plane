@@ -21,3 +21,12 @@ export {
   type EvalMatrixRun,
   type EvalMatrixCell,
 } from './matrix';
+export {
+  buildCaseComparisonRows,
+  comparisonMetrics,
+  barWidths,
+  deltaTone,
+  type CaseComparisonRow,
+  type LabEvalComparison,
+  type ComparisonMetric,
+} from './lab-comparison';
