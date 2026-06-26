@@ -84,13 +84,16 @@ Components: `metric-comparison-chart.tsx`, `per-case-delta-table.tsx`.
 
 Uses existing `buildEvalComparison()` + eval run case results.
 
-### Phase C — Experiments hub (minimal new read APIs)
+### Phase C — Experiments hub (minimal new read APIs) ✅ shipped 2026-06-26
 
-| View | Answers |
-|------|---------|
-| **Timeline** | All eval + optimization + dispatcher activity, filterable by agent/suite |
-| **Compare workspace** | Pick 2–N eval runs or candidates; side-by-side |
-| **Suite health** | Flaky cases, regression flags, latest score per case |
+| View | Answers | Status |
+|------|---------|--------|
+| **Timeline** | Eval + optimization + dispatcher activity | ✅ `/agents/experiments` |
+| **Compare workspace** | 2+ eval runs on same suite → heatmap | ✅ Compare tab |
+| **Suite health** | Regression + flaky flags per case | ✅ Suite health tab |
+
+API: `GET /experiments/timeline`, `/experiments/suite-health`, `/experiments/compare`.
+Package: `@axplane/experiments`.
 
 ### Phase D — optimization internals (schema + API)
 

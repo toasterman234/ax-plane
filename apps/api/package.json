@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@axplane/db": "workspace:*",
+    "@axplane/dispatcher-eval": "workspace:*",
     "@axplane/events": "workspace:*",
     "@axplane/flow-canvas": "workspace:*",
     "@axplane/forge": "workspace:*",
@@ -18,6 +19,7 @@
     "@axplane/agents": "workspace:*",
     "@axplane/ax-adapter": "workspace:*",
     "@axplane/eval": "workspace:*",
+    "@axplane/experiments": "workspace:*",
     "@axplane/graph": "workspace:*",
     "@axplane/lab": "workspace:*",
     "@axplane/runtime": "workspace:*",

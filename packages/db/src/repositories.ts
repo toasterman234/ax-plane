@@ -1092,6 +1092,16 @@ export function createRepositories(db: Database) {
         .orderBy(desc(optimizationRuns.createdAt));
     },
 
+    async listOptimizationRunsFiltered(filter?: { agentId?: string; suiteId?: string; limit?: number }) {
+      const conditions = [];
+      if (filter?.agentId) conditions.push(eq(optimizationRuns.agentId, filter.agentId));
+      if (filter?.suiteId) conditions.push(eq(optimizationRuns.suiteId, filter.suiteId));
+      const base = db.select().from(optimizationRuns).orderBy(desc(optimizationRuns.createdAt));
+      const query = conditions.length ? base.where(and(...conditions)) : base;
+      if (filter?.limit) return query.limit(filter.limit);
+      return query;
+    },
+
     async createAgentCandidate(input: {
       agentId: string;
       sourceOptimizationRunId?: string | null;

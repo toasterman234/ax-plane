@@ -43,6 +43,7 @@ import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEn
 import type { HostToolDefinition } from '@axplane/host-tools';
 import { registerForgeRoutes, handleForgeRouteError } from './forge-routes';
 import { registerDispatcherEvalRoutes } from './dispatcher-eval-routes.js';
+import { registerExperimentsRoutes } from './experiments-routes.js';
 import { buildHealthPayload } from './health-payload';
 import { buildDashboardSummary } from './dashboard-summary';
 
@@ -804,6 +805,7 @@ registerForgeRoutes(app, {
 });
 
 registerDispatcherEvalRoutes(app);
+registerExperimentsRoutes(app, repo);
 
 app.get('/requests', async (c) => c.json(await repo.listRequests()));
 
