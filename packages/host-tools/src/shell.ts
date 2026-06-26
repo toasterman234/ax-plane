@@ -1,8 +1,24 @@
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { repoRoot, resolveRepoPath } from './paths';
 
 const execFileAsync = promisify(execFile);
+
+function resolveShell(): string {
+  const candidates = [
+    process.env.AXPLANE_SHELL,
+    process.env.SHELL,
+    '/bin/zsh',
+    '/bin/bash',
+    '/bin/sh',
+  ].filter((s): s is string => Boolean(s));
+
+  for (const shell of candidates) {
+    if (existsSync(shell)) return shell;
+  }
+  return '/bin/sh';
+}
 
 const BLOCKED = [
   /\brm\s+-rf\s+\//,
@@ -24,7 +40,7 @@ export async function shellRun(args: { command: string; cwd?: string }) {
   }
 
   const cwd = args.cwd ? resolveRepoPath(args.cwd) : repoRoot();
-  const { stdout, stderr } = await execFileAsync('/bin/zsh', ['-lc', command], {
+  const { stdout, stderr } = await execFileAsync(resolveShell(), ['-lc', command], {
     cwd,
     timeout: Number(process.env.AXPLANE_SHELL_TIMEOUT_MS ?? 30_000),
     maxBuffer: 512_000,
