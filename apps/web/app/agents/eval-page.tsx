@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DEFAULT_AGENT_ID } from '@/lib/constants';
-import type { AgentRow, AgentVersion, EvalMatrix, EvalRun, EvalSuite } from '@/lib/eval-types';
+import type { AgentRow, AgentVersion, EvalRun, EvalSuite } from '@/lib/eval-types';
+import { fetchEvalMatrix } from '@/lib/eval-matrix-client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CaseHeatmap } from '@/components/eval/case-heatmap';
@@ -25,6 +26,10 @@ export default function EvalPage() {
   const suites = useQuery({ queryKey: ['eval-suites'], queryFn: () => api<EvalSuite[]>('/eval/suites') });
   const agents = useQuery({ queryKey: ['agents'], queryFn: () => api<AgentRow[]>('/agents') });
   const activeSuiteId = selectedSuiteId || suites.data?.[0]?.id || '';
+  const activeSuite = useMemo(
+    () => suites.data?.find((suite) => suite.id === activeSuiteId) ?? null,
+    [suites.data, activeSuiteId],
+  );
 
   const runs = useQuery({
     queryKey: ['eval-runs', activeSuiteId, agentId],
@@ -40,12 +45,13 @@ export default function EvalPage() {
 
   const matrix = useQuery({
     queryKey: ['eval-matrix', activeSuiteId, agentId],
-    queryFn: () => {
-      const params = new URLSearchParams({ limit: '8' });
-      if (agentId) params.set('agentId', agentId);
-      return api<EvalMatrix>(`/eval/suites/${activeSuiteId}/matrix?${params.toString()}`);
-    },
-    enabled: Boolean(activeSuiteId),
+    queryFn: () => fetchEvalMatrix({
+      suiteId: activeSuiteId,
+      suite: activeSuite!,
+      agentId,
+      limit: 8,
+    }),
+    enabled: Boolean(activeSuiteId && activeSuite),
   });
 
   const versions = useQuery({
@@ -237,6 +243,10 @@ export default function EvalPage() {
               <h3 className="text-sm font-medium text-foreground">Case heatmap</h3>
               {matrix.isLoading ? (
                 <p className="text-sm text-muted-foreground">Loading matrix…</p>
+              ) : matrix.isError ? (
+                <p className="text-sm text-red-400">
+                  {matrix.error instanceof Error ? matrix.error.message : 'Failed to load heatmap'}
+                </p>
               ) : matrix.data ? (
                 <CaseHeatmap
                   matrix={matrix.data}

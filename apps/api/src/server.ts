@@ -288,24 +288,6 @@ app.post('/eval/suites', async (c) => {
   return c.json(suite, 201);
 });
 
-app.get('/eval/suites/:id', async (c) => {
-  const suite = await repo.getEvalSuite(c.req.param('id'));
-  if (!suite) return c.json({ error: 'Not found' }, 404);
-  return c.json(suite);
-});
-
-app.get('/eval/runs', async (c) => {
-  const suiteId = c.req.query('suiteId');
-  const agentId = c.req.query('agentId');
-  const limitRaw = c.req.query('limit');
-  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
-  return c.json(await repo.listEvalRuns({
-    suiteId: suiteId || undefined,
-    agentId: agentId || undefined,
-    limit: Number.isFinite(limit) && limit! > 0 ? limit : undefined,
-  }));
-});
-
 app.get('/eval/suites/:id/matrix', async (c) => {
   const suiteId = c.req.param('id');
   const agentId = c.req.query('agentId') || undefined;
@@ -323,6 +305,24 @@ app.get('/eval/suites/:id/matrix', async (c) => {
   });
   if (!matrix) return c.json({ error: 'Not found' }, 404);
   return c.json(matrix);
+});
+
+app.get('/eval/suites/:id', async (c) => {
+  const suite = await repo.getEvalSuite(c.req.param('id'));
+  if (!suite) return c.json({ error: 'Not found' }, 404);
+  return c.json(suite);
+});
+
+app.get('/eval/runs', async (c) => {
+  const suiteId = c.req.query('suiteId');
+  const agentId = c.req.query('agentId');
+  const limitRaw = c.req.query('limit');
+  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+  return c.json(await repo.listEvalRuns({
+    suiteId: suiteId || undefined,
+    agentId: agentId || undefined,
+    limit: Number.isFinite(limit) && limit! > 0 ? limit : undefined,
+  }));
 });
 
 app.get('/eval/runs/:id', async (c) => {

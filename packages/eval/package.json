@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./lab-comparison": "./src/lab-comparison.ts"
+    "./lab-comparison": "./src/lab-comparison.ts",
+    "./matrix": "./src/matrix.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

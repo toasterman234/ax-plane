@@ -2,7 +2,7 @@ export type EvalSuite = {
   id: string;
   name: string;
   description: string;
-  cases: Array<{ id: string; name: string; taskText: string }>;
+  cases: Array<{ id: string; name: string; taskText: string; sortOrder?: number }>;
 };
 
 export type EvalRunSummary = {
