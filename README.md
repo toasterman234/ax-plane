@@ -99,7 +99,7 @@ The sidebar has five top-level areas. Each hub has sub-tabs for related features
 
 | Section | Route | What it's for |
 |---------|-------|---------------|
-| **Home** | `/` | Onboarding checklist — submit → watch → approve |
+| **Home** | `/` | Mission control — health, attention queue, setup checklist, hub map |
 | **Agents** | `/agents/*` | Agent registry, tools, memory, eval, forge, per-agent editor & lab |
 | **Workflows** | `/workflows/*` | Graph child-run pipelines, Ax `flow()` proxy, team dispatcher proxy |
 | **Operations** | `/operations/*` | Request inbox, run history, approval queue |
@@ -111,13 +111,14 @@ Legacy URLs (`/requests`, `/runs`, `/tools`, etc.) redirect into the Operations 
 
 ## Home (`/`)
 
-A three-step getting-started card layout:
+Mission control for the stack:
 
-1. **Submit request** — create work in the Operations inbox  
-2. **Watch run** — open a run and stream its event timeline  
-3. **Approve tool** — unblock approval-gated tool calls  
+- **System status** — API, worker, execution mode, ax-server reachability
+- **Needs attention** — pending approvals, blocked runs, recent failures
+- **First-run setup** — checklist (default agent → request → run → approval) with one-click install; collapses to **recent runs** when complete
+- **Hub map** — Agents, Workflows, Operations, Settings with live counts
 
-Use this page when demoing Ax Plane to someone new. Everything else in the app hangs off these three primitives.
+Use this page when demoing Ax Plane to someone new or checking what needs action across hubs.
 
 ---
 

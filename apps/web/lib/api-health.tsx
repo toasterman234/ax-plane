@@ -16,7 +16,8 @@ type Health = {
   service?: string;
   status?: string;
   worker?: WorkerHealth;
-  axEngine?: { reachable: boolean; flowCount: number; url: string };
+  axEngine?: { reachable: boolean; flowCount: number; url: string; dispatcherAvailable?: boolean };
+  router?: { mode?: string; executionMode?: string };
 };
 
 export function useApiHealth() {
