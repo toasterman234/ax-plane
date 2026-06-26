@@ -2,6 +2,7 @@ import type { FlowSpec } from './types';
 
 export type GraphWorkflowShape = {
   id: string;
+  pattern?: string;
   steps: Array<{ id: string; agentId: string; inputTemplate?: string }>;
 };
 

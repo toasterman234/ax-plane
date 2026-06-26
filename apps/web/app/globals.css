@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import '@xyflow/react/dist/style.css';
+
 /* tweakcn preset: Twitter — https://tweakcn.com/r/themes/twitter */
 @layer base {
   :root {

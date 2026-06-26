@@ -22,7 +22,7 @@ const TAB_DESCRIPTIONS: Record<string, string> = {
   '/workflows':
     'Control-plane graph workflows spawn child agent runs with handoffs — not in-process Ax child loops.',
   '/workflows/ax-flows':
-    'ax-llm flow() programs from ax-server — structure, engine run history, live SSE runs, and governed AxPlane runs (runKind: axflow).',
+    'ax-llm flow() and corpus orchestration patterns from ax-server — filter by Patterns / Custom / Builder, run live or as governed axflow runs.',
   '/workflows/dispatcher':
     'Proxied ax-server /dispatcher — dynamic RLM supervisor with team.planner, team.coder, team.researcher. Governed runs use runKind: axdispatcher.',
 };

@@ -767,6 +767,8 @@ export function createRepositories(db: Database) {
         name: row.name,
         description: row.description,
         steps: parseWorkflowSteps(row.steps),
+        ...(row.pattern ? { pattern: row.pattern } : {}),
+        ...(row.definitionJson != null ? { definitionJson: row.definitionJson } : {}),
       }));
     },
 
@@ -778,6 +780,8 @@ export function createRepositories(db: Database) {
         name: row.name,
         description: row.description,
         steps: parseWorkflowSteps(row.steps),
+        ...(row.pattern ? { pattern: row.pattern } : {}),
+        ...(row.definitionJson != null ? { definitionJson: row.definitionJson } : {}),
       };
     },
 
@@ -786,6 +790,8 @@ export function createRepositories(db: Database) {
       name: string;
       description?: string;
       steps: unknown[];
+      pattern?: string;
+      definitionJson?: unknown;
     }) {
       await db
         .insert(graphWorkflows)
@@ -794,6 +800,8 @@ export function createRepositories(db: Database) {
           name: input.name,
           description: input.description ?? '',
           steps: input.steps,
+          pattern: input.pattern ?? null,
+          definitionJson: input.definitionJson ?? null,
         })
         .onConflictDoUpdate({
           target: graphWorkflows.id,
@@ -801,6 +809,8 @@ export function createRepositories(db: Database) {
             name: input.name,
             description: input.description ?? '',
             steps: input.steps,
+            pattern: input.pattern ?? null,
+            definitionJson: input.definitionJson ?? null,
           },
         });
       return this.getGraphWorkflow(input.id);

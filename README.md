@@ -230,28 +230,37 @@ Three orchestration lanes — all produce **governed runs** stored in Postgres w
 
 | Feature | Description |
 |---------|-------------|
-| **Definitions list** | All saved graph workflows |
+| **Definitions list** | All saved graph workflows; **pattern badges** when a workflow implements a canonical topology |
 | **New workflow / builder** | Linear step editor: each step binds an agent + input template |
 | **Install sample** | `lookup_summarize` — lookup agent → summarize agent |
-| **Topology canvas** | Read-only flow diagram of the workflow structure |
+| **Install classify staging** | `pattern_classify_act_staging` — two-step classify → act graph with bundled agents (staging for classify-and-act; true 1→N routing needs graph Phase 4) |
+| **Pattern + v2 metadata** | Workflows can store optional `pattern` tag and `definition_json` (v2 DAG design; executor still runs linear `steps[]` until Phase 3–4) |
+| **Topology canvas** | Read-only flow diagram with pattern blurbs and classify-and-act routing notes |
 | **Start workflow run** | Pick a Request → queues parent run; worker spawns child runs per step |
 | **Run detail** | Parent shows **Graph steps** with child run links and statuses |
 
 Child step hitting `needs_approval` pauses the parent until you approve on the child run.
 
+For the full **classify-and-act** topology (classifier → distinct handlers), use **AX Flows → `pattern-classify-and-act`** on ax-server. Graph lane is sequential child-run staging until conditional edges ship.
+
 ---
 
 ### AX Flows (`/workflows/ax-flows`)
 
-**Declarative Ax `flow()` programs** proxied from an external ax-server.
+**Declarative Ax `flow()` programs** and **corpus orchestration patterns** proxied from an external ax-server.
 
 | Feature | Description |
 |---------|-------------|
 | **Flow catalog** | Lists flows registered on ax-server (`GET /ax-flows`) |
-| **Structure canvas** | Read-only `FlowSpec` diagram per flow |
+| **Catalog filters** | **All** · **Patterns** (corpus `pattern-*` flows) · **Custom** · **Builder** — grouped sections when viewing all |
+| **Pattern badges** | Violet topology tags (classify-and-act, fanout-and-synthesize, etc.) plus corpus / builder source chips |
+| **Pattern blurbs** | Operator-facing one-liners per canonical topology in the detail header |
+| **Structure canvas** | Read-only `FlowSpec` diagram per flow (empty-state safe; auto fit-view) |
 | **Engine run history** | Past ax-server runs for a flow |
 | **Run live** | SSE stream through API proxy — watch steps light up on canvas |
 | **Queue governed run** | Attach to a Request → `runKind: axflow` → full Postgres event log + run detail |
+
+**Six corpus patterns** (from [dynamic-agent-workflows](https://github.com/rawwerks/dynamic-agent-workflows), ported as `pattern-*` on ax-server): classify-and-act, fanout-and-synthesize, adversarial-verification, generate-and-filter, tournament, loop-until-done. See [`docs/patterns/`](docs/patterns/).
 
 **Requires ax-server** at `AX_SERVER_URL` (default `http://127.0.0.1:8810`). Without it, catalog is empty but graph workflows and single-agent runs still work.
 
@@ -383,6 +392,7 @@ Mock router uses a deterministic classifier. Real router calls `ax()` to pick th
 | Host tool sandbox + policy | You implement tool guards |
 | Eval suites + Agent Lab | `agent.optimize()` in scripts |
 | Graph child-run workflows | In-process patterns or custom orchestration |
+| Pattern-tagged graph metadata + v2 DAG design | Full DAG executor + conditional edges (roadmap Phase 3–4) |
 | Governed axflow / dispatcher proxy | Direct ax-server calls |
 
 See [`docs/ax-surface-map.md`](docs/ax-surface-map.md) for a full grid of axllm.dev capabilities vs Ax Plane.
@@ -408,8 +418,8 @@ packages/lab          Agent Lab optimizer workflow
 packages/forge        Agent Forge intake workflow
 packages/memory       Kernel inject, memory tool execution
 packages/eval         Deterministic eval scoring
-packages/graph        Graph workflow definitions + executor
-packages/flow-canvas  Read-only flow diagrams + axflow/dispatcher overlays
+packages/graph        Graph workflow definitions + executor + v2 DAG types (`linearStepsToV2`, pattern staging)
+packages/flow-canvas  Read-only flow diagrams, axflow/dispatcher overlays, pattern catalog helpers
 ```
 
 ---
@@ -431,12 +441,13 @@ Single-agent mock mode + graph workflows need **only Postgres**.
 
 - Cron / delayed run scheduling  
 - Workflow delete, parallel branches, conditional edges, visual DAG editor  
+- Graph v2 **executor** (v2 `definition_json` is stored; linear `steps[]` still runs)  
 - MCP / `discover()` / `recall()` (memory kernel + host tools instead)  
 - Top-level GEPA `optimize()` on arbitrary programs  
 - LLM token streaming to the UI (SSE streams **run events**, not tokens)  
 - Audio / multimodal  
 
-Roadmaps: [`docs/workflows-roadmap.md`](docs/workflows-roadmap.md) · [`docs/agent-forge-roadmap.md`](docs/agent-forge-roadmap.md)
+Roadmaps: [`docs/workflows-roadmap.md`](docs/workflows-roadmap.md) · [`docs/agent-forge-roadmap.md`](docs/agent-forge-roadmap.md) · [`docs/patterns/`](docs/patterns/)
 
 ---
 
@@ -448,6 +459,7 @@ Roadmaps: [`docs/workflows-roadmap.md`](docs/workflows-roadmap.md) · [`docs/age
 | [`docs/ax-surface-map.md`](docs/ax-surface-map.md) | axllm.dev vs Ax Plane capability grid |
 | [`docs/flow-canvas.md`](docs/flow-canvas.md) | Canvas package + axflow/dispatcher proxy |
 | [`docs/workflows.md`](docs/workflows.md) | Graph child-run workflows |
+| [`docs/patterns/`](docs/patterns/) | Six corpus orchestration patterns — rosetta, conformance, graph reference |
 | [`docs/agent-lab.md`](docs/agent-lab.md) | Optimize / compare / promote |
 | [`docs/agent-forge.md`](docs/agent-forge.md) | Forge product brief |
 | [`docs/router-llm.md`](docs/router-llm.md) | LLM request routing |

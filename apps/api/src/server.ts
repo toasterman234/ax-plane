@@ -36,6 +36,8 @@ import {
 import {
   BUNDLED_GRAPH_WORKFLOW,
   BUNDLED_WORKFLOW_AGENTS,
+  CLASSIFY_ACT_STAGING_AGENTS,
+  CLASSIFY_ACT_STAGING_WORKFLOW,
   CreateGraphWorkflowSchema,
 } from '@axplane/graph';
 import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY } from '@axplane/flow-canvas';
@@ -460,6 +462,8 @@ app.post('/workflows', async (c) => {
     name: payload.name,
     description: payload.description,
     steps: payload.steps,
+    pattern: payload.pattern,
+    definitionJson: payload.definitionJson,
   });
   return c.json(workflow, 201);
 });
@@ -494,6 +498,36 @@ async function seedBundledWorkflowHandler(c: Context) {
 
 app.post('/workflows/seed-default', seedBundledWorkflowHandler);
 app.post('/workflows/seed-demo', seedBundledWorkflowHandler);
+
+app.post('/workflows/seed-pattern-classify', async (c) => {
+  await repo.ensureGraphOrchestratorAgent();
+  for (const agent of CLASSIFY_ACT_STAGING_AGENTS) {
+    const configJson = AgentConfigSchema.parse({
+      ...buildStarterAgentConfig({
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+      }),
+      tools: [...agent.tools],
+    });
+    await repo.upsertAgent({
+      id: configJson.id,
+      name: configJson.name,
+      description: configJson.description,
+      signature: configJson.signature,
+      configJson,
+    });
+  }
+  const workflow = await repo.upsertGraphWorkflow({
+    id: CLASSIFY_ACT_STAGING_WORKFLOW.id,
+    name: CLASSIFY_ACT_STAGING_WORKFLOW.name,
+    description: CLASSIFY_ACT_STAGING_WORKFLOW.description,
+    steps: CLASSIFY_ACT_STAGING_WORKFLOW.steps,
+    pattern: CLASSIFY_ACT_STAGING_WORKFLOW.pattern,
+    definitionJson: CLASSIFY_ACT_STAGING_WORKFLOW.definitionJson,
+  });
+  return c.json(workflow, 201);
+});
 
 app.get('/workflows/:id', async (c) => {
   const workflow = await repo.getGraphWorkflow(c.req.param('id'));

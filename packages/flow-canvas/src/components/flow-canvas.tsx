@@ -46,7 +46,7 @@ export function FlowCanvas({
   onToggleNode,
   className,
 }: {
-  spec: FlowSpec;
+  spec: FlowSpec | null | undefined;
   overlay?: TraceOverlay;
   selectedNodeId?: string | null;
   onNodeClick?: (nodeId: string) => void;
@@ -55,10 +55,10 @@ export function FlowCanvas({
   onToggleNode?: (nodeId: string) => void;
   className?: string;
 }) {
-  const { nodes, edges } = useMemo(
-    () => specToFlow(spec, overlay, selectedNodeId, { details, expanded, onToggle: onToggleNode }),
-    [spec, overlay, selectedNodeId, details, expanded, onToggleNode],
-  );
+  const { nodes, edges } = useMemo(() => {
+    if (!spec?.nodes?.length) return { nodes: [], edges: [] };
+    return specToFlow(spec, overlay, selectedNodeId, { details, expanded, onToggle: onToggleNode });
+  }, [spec, overlay, selectedNodeId, details, expanded, onToggleNode]);
 
   const [heights, setHeights] = useState<Record<string, number>>({});
   const onNodesChange = useCallback((changes: NodeChange[]) => {
@@ -76,11 +76,20 @@ export function FlowCanvas({
 
   const laidOut = useMemo(() => reflowByHeight(nodes, heights), [nodes, heights]);
 
+  if (!spec?.nodes?.length) {
+    return (
+      <div className={`flex items-center justify-center text-sm text-muted-foreground ${className ?? 'h-full w-full min-h-[320px]'}`}>
+        No flow topology available for this entry.
+      </div>
+    );
+  }
+
   return (
     <div className={className ?? 'h-full w-full min-h-[320px]'}>
       <ReactFlowProvider>
         <ReactFlow
           key={spec.id}
+          style={{ width: '100%', height: '100%' }}
           nodes={laidOut}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -93,6 +102,9 @@ export function FlowCanvas({
           edgesFocusable={false}
           deleteKeyCode={null}
           onNodeClick={(_, node) => onNodeClick?.(node.id)}
+          onInit={(instance) => {
+            void instance.fitView({ padding: 0.3 });
+          }}
         >
           <Background gap={16} color="#334155" />
           <Controls showInteractive={false} className="!bg-slate-900 !border-slate-700" />

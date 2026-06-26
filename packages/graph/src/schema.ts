@@ -19,6 +19,8 @@ export const CreateGraphWorkflowSchema = z
     name: z.string().min(1),
     description: z.string().default(''),
     steps: z.array(GraphWorkflowStepSchema).min(1, 'At least one step is required'),
+    pattern: z.string().optional(),
+    definitionJson: z.unknown().optional(),
   })
   .superRefine((workflow, ctx) => {
     const stepIds = new Set<string>();

@@ -13,6 +13,8 @@
 | Item | Status |
 |------|--------|
 | Linear step list in `graph_workflows.steps` | ✅ |
+| Optional `pattern` + `definition_json` on graph workflows | ✅ Phase C |
+| `pattern_classify_act_staging` seed + v2 DAG design | ✅ Phase C |
 | `executeGraphRun` sequential child runs | ✅ |
 | Template vars `{{taskText}}`, `{{steps.<id>.output.answer}}` | ✅ |
 | `POST /workflows` create/upsert | ✅ |
@@ -57,6 +59,23 @@ graphState.stepIndex → for each step → one child run → await → handoff
 
 ---
 
+## Pattern-driven requirements (corpus alignment)
+
+Source: [docs/patterns/rosetta/](./patterns/rosetta/) · [graph-reference.md](./patterns/graph-reference.md)
+
+| Pattern | axflow today | Graph phase | Graph deliverable |
+|---------|--------------|-------------|-------------------|
+| classify-and-act | `pattern-classify-and-act` | **4** (conditions) | `CLASSIFY_AND_ACT_GRAPH_V2` + staging workflow `pattern_classify_act_staging` ✅ |
+| fanout-and-synthesize | `pattern-fanout-and-synthesize` | **3** (parallel/join) | Diamond + merge node |
+| adversarial-verification | `pattern-adversarial-verification` | **3** + **4** | Per-item refuter fan-out + survivor join |
+| generate-and-filter | `pattern-generate-and-filter` | **3** | Parallel generators → filter child |
+| tournament | `pattern-tournament` | **3** (multi-round) | Defer — axflow canonical |
+| loop-until-done | `pattern-loop-until-done` | loop executor | Defer — axflow canonical |
+
+**Phase C (2026-06):** `graph_workflows.pattern` + `definition_json` columns; v2 types in `@axplane/graph`; classify staging seed endpoint.
+
+---
+
 ## Phase 1 — Delete workflow (0.5–1 day)
 
 **API:** `DELETE /workflows/:id`
@@ -75,7 +94,7 @@ graphState.stepIndex → for each step → one child run → await → handoff
 
 ## Phase 2 — Graph model v2: DAG definition (2–3 days)
 
-**Goal:** `nodes` + `edges` AST; v1 `steps[]` remains via adapter.
+**Goal:** `nodes` + `edges` AST; v1 `steps[]` remains via adapter. **Started:** `definition_json` column + `linearStepsToV2()` + `CLASSIFY_AND_ACT_GRAPH_V2`.
 
 **Migration `0006_graph_workflow_v2.sql` (sketch):**
 

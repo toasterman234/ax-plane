@@ -11,6 +11,10 @@ export type GraphWorkflow = {
   name: string;
   description: string;
   steps: GraphWorkflowStep[];
+  /** Canonical dynamic-workflow pattern id when this graph implements (or stages) one. */
+  pattern?: string;
+  /** v2 DAG definition (design-time / future executor; optional). */
+  definitionJson?: unknown;
 };
 
 export type GraphStepOutput = {

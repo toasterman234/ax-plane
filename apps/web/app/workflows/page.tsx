@@ -3,13 +3,14 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
+import { patternLabel } from '@axplane/flow-canvas';
 import { api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkflowBuilder, type WorkflowDraft } from './workflow-builder';
 import { WorkflowCanvasPanel } from './workflow-canvas-panel';
 
-type Workflow = WorkflowDraft;
+type Workflow = WorkflowDraft & { pattern?: string };
 
 type RequestRow = { id: string; body: string; agentId: string };
 
@@ -72,6 +73,19 @@ export default function WorkflowsPage() {
     }
   }
 
+  async function seedPatternClassify() {
+    setMessage(null);
+    setError(null);
+    try {
+      const workflow = await api<Workflow>('/workflows/seed-pattern-classify', { method: 'POST' });
+      await workflows.refetch();
+      setSelectedWorkflowId(workflow.id);
+      setMessage(`Pattern staging workflow ready: ${workflow.name}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to seed pattern workflow');
+    }
+  }
+
   async function startWorkflowRun() {
     if (!activeWorkflowId || !selectedRequestId) return;
     setStarting(true);
@@ -109,6 +123,9 @@ export default function WorkflowsPage() {
             <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={seedDemo}>
               Install sample workflow
             </Button>
+            <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={seedPatternClassify}>
+              Install classify staging
+            </Button>
           </div>
         </div>
         {(workflows.data ?? []).length === 0 ? (
@@ -130,7 +147,14 @@ export default function WorkflowsPage() {
                     onClick={() => setSelectedWorkflowId(workflow.id)}
                     className="min-w-0 flex-1 text-left"
                   >
-                    <div className="font-medium">{workflow.name}</div>
+                    <div className="font-medium">
+                      {workflow.name}
+                      {workflow.pattern ? (
+                        <span className="ml-2 rounded bg-violet-950/50 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-violet-300">
+                          {patternLabel(workflow.pattern)}
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="text-muted-foreground">{workflow.description || workflow.id}</div>
                   </button>
                   <Button

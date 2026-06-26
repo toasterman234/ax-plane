@@ -75,7 +75,7 @@ Single-agent runs still use `@axplane/ax-adapter` (`native` or `rlm`) — not ax
 |-------|-------------|--------|
 | **Memory kernel** | `memory_entries` table, `memory.save` / `search` / `list`, auto-inject at run start (`memory.injected`), `/memory` UI | ✅ |
 | **Eval lab** | `eval_suites` / `eval_cases` / `eval_runs`, deterministic scoring, `/eval` UI | ✅ |
-| **Graph workflows** | `graph_workflows`, parent/child runs, `executeGraphRun`, `/workflows` UI + **builder**, `POST /workflows` upsert | ✅ |
+| **Graph workflows** | `graph_workflows`, parent/child runs, `executeGraphRun`, `/workflows` UI + **builder**, `POST /workflows` upsert; **Phase C:** `pattern` + `definition_json`, classify staging seed | ✅ |
 | **Flow canvas** | `@axplane/flow-canvas`, graph + axflow overlays on run detail, `/workflows` topology panel | ✅ |
 | **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
 | **Dispatcher (governed)** | `runKind: axdispatcher`, worker → `/dispatcher` SSE, `dispatcher.*` events, `/dispatcher` UI + live run | ✅ |

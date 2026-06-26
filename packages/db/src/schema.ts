@@ -154,6 +154,8 @@ export const graphWorkflows = pgTable('graph_workflows', {
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   steps: jsonb('steps').notNull().default(sql`'[]'::jsonb`),
+  pattern: text('pattern'),
+  definitionJson: jsonb('definition_json'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

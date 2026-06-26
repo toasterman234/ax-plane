@@ -7,6 +7,9 @@ import type { FlowEntry } from '@axplane/flow-canvas';
 import {
   applyAxFlowStreamEvent,
   deriveEngineRunOverlay,
+  patternBlurb,
+  patternLabel,
+  resolvePatternSource,
   type AxEngineRunDetail,
   type AxEngineRunSummary,
   type NodeInlineDetail,
@@ -123,14 +126,37 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
   };
 
   const runList = runs.data?.runs ?? [];
+  const pattern = patternLabel(flow.pattern);
+  const blurb = patternBlurb(flow.pattern);
+  const source = resolvePatternSource(flow);
 
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden p-0">
         <div className="border-b border-border px-4 py-3">
-          <h2 className="text-lg font-semibold">{flow.title}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold">{flow.title}</h2>
+            {pattern ? (
+              <span className="rounded bg-violet-950/50 px-2 py-0.5 text-xs font-medium text-violet-300">
+                {pattern}
+              </span>
+            ) : null}
+            {source === 'corpus' ? (
+              <span className="rounded bg-emerald-950/40 px-2 py-0.5 text-xs text-emerald-300">corpus</span>
+            ) : source === 'builder' ? (
+              <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">builder</span>
+            ) : null}
+          </div>
           <p className="font-mono text-xs text-muted-foreground">{flow.id}</p>
-          {flow.summary ? <p className="mt-2 text-sm text-muted-foreground">{flow.summary}</p> : null}
+          {blurb ? <p className="mt-2 text-sm text-muted-foreground">{blurb}</p> : null}
+          {flow.summary && blurb ? (
+            <p className="mt-2 text-sm text-muted-foreground">{flow.summary}</p>
+          ) : flow.summary ? (
+            <p className="mt-2 text-sm text-muted-foreground">{flow.summary}</p>
+          ) : null}
+          {flow.corpusRef ? (
+            <p className="mt-2 font-mono text-[10px] text-muted-foreground/80">source: {flow.corpusRef}</p>
+          ) : null}
         </div>
         <div className="h-[460px] bg-card">
           <FlowCanvas spec={flow.spec} overlay={overlay} details={details} />

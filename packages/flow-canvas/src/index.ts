@@ -69,5 +69,18 @@ export {
   streamAxDispatcherRun,
 } from './fetch-dispatcher';
 export { executeAxDispatcherRun, type AxDispatcherRepository } from './execute-dispatcher';
+export {
+  PATTERN_BLURBS,
+  PATTERN_LABELS,
+  compareFlowCatalogEntries,
+  groupFlowCatalogEntries,
+  matchesCatalogFilter,
+  patternBlurb,
+  patternLabel,
+  resolvePatternSource,
+  type FlowCatalogFilter,
+  type PatternId,
+  type PatternSource,
+} from './pattern-meta';
 export type { DispatcherStreamEvent } from './dispatcher-types';
 export { parseDispatcherSsePayload } from './dispatcher-types';

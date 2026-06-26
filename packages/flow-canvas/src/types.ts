@@ -37,4 +37,8 @@ export type FlowEntry = {
   title: string;
   summary: string;
   spec: FlowSpec;
+  /** Canonical dynamic-workflow pattern id (e.g. fanout-and-synthesize). */
+  pattern?: string;
+  patternSource?: 'corpus' | 'custom' | 'builder';
+  corpusRef?: string;
 };
