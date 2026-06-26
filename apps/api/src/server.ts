@@ -42,6 +42,7 @@ import {
 import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY } from '@axplane/flow-canvas';
 import type { HostToolDefinition } from '@axplane/host-tools';
 import { registerForgeRoutes, handleForgeRouteError } from './forge-routes';
+import { registerDispatcherEvalRoutes } from './dispatcher-eval-routes.js';
 import { buildHealthPayload } from './health-payload';
 import { buildDashboardSummary } from './dashboard-summary';
 
@@ -295,7 +296,33 @@ app.get('/eval/suites/:id', async (c) => {
 
 app.get('/eval/runs', async (c) => {
   const suiteId = c.req.query('suiteId');
-  return c.json(await repo.listEvalRuns(suiteId || undefined));
+  const agentId = c.req.query('agentId');
+  const limitRaw = c.req.query('limit');
+  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+  return c.json(await repo.listEvalRuns({
+    suiteId: suiteId || undefined,
+    agentId: agentId || undefined,
+    limit: Number.isFinite(limit) && limit! > 0 ? limit : undefined,
+  }));
+});
+
+app.get('/eval/suites/:id/matrix', async (c) => {
+  const suiteId = c.req.param('id');
+  const agentId = c.req.query('agentId') || undefined;
+  const limitRaw = c.req.query('limit');
+  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+  const runIdsParam = c.req.query('runIds');
+  const runIds = runIdsParam
+    ? runIdsParam.split(',').map((id) => id.trim()).filter(Boolean)
+    : undefined;
+
+  const matrix = await repo.getEvalSuiteMatrix(suiteId, {
+    agentId,
+    limit: Number.isFinite(limit) && limit! > 0 ? limit : undefined,
+    runIds,
+  });
+  if (!matrix) return c.json({ error: 'Not found' }, 404);
+  return c.json(matrix);
 });
 
 app.get('/eval/runs/:id', async (c) => {
@@ -775,6 +802,8 @@ registerForgeRoutes(app, {
   runAgent: runAgentForConfig,
   loadAgentConfig,
 });
+
+registerDispatcherEvalRoutes(app);
 
 app.get('/requests', async (c) => c.json(await repo.listRequests()));
 

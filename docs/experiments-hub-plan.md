@@ -61,13 +61,16 @@ flowchart LR
 
 ## Visualization scope (by phase)
 
-### Phase A — read-only on existing tables (no schema change)
+### Phase A — read-only on existing tables (no schema change) ✅ shipped 2026-06-26
 
-| Viz | Answers |
-|-----|---------|
-| **Case × run heatmap** | Which cases regressed or improved across runs? |
-| **Score trend** | Did agent version N actually beat N−1 on this suite? |
-| **Dispatcher-style case rows** | Per-case status, score, link to run (copy pattern from `routing-eval-panel.tsx`) |
+| Viz | Answers | Status |
+|-----|---------|--------|
+| **Case × run heatmap** | Which cases regressed or improved across runs? | ✅ `/agents/eval` Insights panel |
+| **Score trend** | Did agent version N actually beat N−1 on this suite? | ✅ SVG chart on eval page |
+| **Dispatcher-style case rows** | Per-case status, score, criterion breakdown | ✅ expandable `EvalCaseRow` |
+
+API: `GET /eval/runs?suiteId=&agentId=&limit=`, `GET /eval/suites/:id/matrix?agentId=&limit=`.
+Package: `@axplane/eval` `buildEvalMatrix`.
 
 ### Phase B — Agent Lab comparison upgrade (no schema change)
 
