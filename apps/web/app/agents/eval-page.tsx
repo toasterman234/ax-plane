@@ -229,7 +229,7 @@ export default function EvalPage() {
           <div>
             <h2 className="text-lg font-semibold">Insights</h2>
             <p className="text-sm text-muted-foreground">
-              Last 8 completed runs for this suite and agent. Click a column or chart point to open run detail.
+              Last 8 finished runs for this suite and agent. Click a column or chart point to open run detail.
             </p>
           </div>
           <div className="grid gap-6 xl:grid-cols-2">

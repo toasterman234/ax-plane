@@ -21,7 +21,7 @@ export function CaseHeatmap({ matrix, selectedRunId, onSelectRun }: CaseHeatmapP
   const cellMap = new Map(matrix.cells.map((cell) => [cellKey(cell.caseId, cell.runId), cell]));
 
   if (matrix.runs.length === 0) {
-    return <p className="text-sm text-muted-foreground">No completed runs yet — run eval to populate the heatmap.</p>;
+    return <p className="text-sm text-muted-foreground">No finished runs yet — run eval to populate the heatmap.</p>;
   }
 
   return (

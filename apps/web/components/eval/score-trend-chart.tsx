@@ -20,12 +20,12 @@ function formatTick(dateIso: string): string {
 
 export function ScoreTrendChart({ runs, versionById, selectedRunId, onSelectRun }: ScoreTrendChartProps) {
   const points = runs
-    .filter((run) => run.status === 'completed' && run.summaryJson != null)
+    .filter((run) => run.completedAt != null && run.summaryJson != null)
     .slice()
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   if (points.length === 0) {
-    return <p className="text-sm text-muted-foreground">No completed runs to chart yet.</p>;
+    return <p className="text-sm text-muted-foreground">No finished runs to chart yet.</p>;
   }
 
   const innerW = CHART_WIDTH - PAD.left - PAD.right;

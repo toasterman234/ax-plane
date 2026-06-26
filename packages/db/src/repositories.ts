@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import type { ControlEventType, RunStatus } from '@axplane/events';
 import type { EvalCriterion } from '@axplane/eval';
 import { buildEvalMatrix } from '@axplane/eval';
@@ -752,7 +752,8 @@ export function createRepositories(db: Database) {
           .where(and(eq(evalRuns.suiteId, suiteId), inArray(evalRuns.id, opts.runIds)))
           .orderBy(asc(evalRuns.createdAt));
       } else {
-        const conditions = [eq(evalRuns.suiteId, suiteId), eq(evalRuns.status, 'completed')];
+        // Eval runs use status "failed" when any case fails scoring — still finished runs.
+        const conditions = [eq(evalRuns.suiteId, suiteId), isNotNull(evalRuns.completedAt)];
         if (opts.agentId) conditions.push(eq(evalRuns.agentId, opts.agentId));
         rows = await db
           .select()
