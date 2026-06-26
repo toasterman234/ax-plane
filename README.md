@@ -17,6 +17,30 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Ax Plane home — submit a request, watch a run, approve a tool" width="900" />
+</p>
+
+| Agents registry | Run detail |
+| :---: | :---: |
+| <img src="docs/screenshots/agents.png" alt="Agent registry and config" width="440" /> | <img src="docs/screenshots/run-detail.png" alt="Run detail with output and tool calls" width="440" /> |
+
+| Approvals queue | Workflows |
+| :---: | :---: |
+| <img src="docs/screenshots/operations-approvals.png" alt="Human approval queue for side-effect tools" width="440" /> | <img src="docs/screenshots/workflows.png" alt="Graph workflows and Ax Flow proxy" width="440" /> |
+
+More captures: [`docs/screenshots/`](docs/screenshots/) (requests inbox, runs list, agent editor, Forge).
+
+Regenerate locally while the dev stack is up on `:3010`:
+
+```bash
+npx -p playwright node scripts/capture-demo-screenshots.mjs
+```
+
+---
+
 ## Quick start
 
 ```bash
