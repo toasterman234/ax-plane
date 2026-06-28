@@ -40,9 +40,8 @@ export function dispatcherEventToFlowTrace(
         mechanism: event.mechanism,
         rationale: event.rationale,
       };
-    case 'thought':
-      return { runId, kind: 'thinking', text: event.text };
     case 'turn':
+      // `thought` may ride on turn payloads; standalone `type: 'thought'` is WIP-only.
       return {
         runId,
         kind: 'turn_complete',
