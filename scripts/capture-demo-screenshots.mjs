@@ -24,7 +24,8 @@ const shots = [
     file: 'operations-board.png',
     path: '/operations/board',
     name: 'Operations — Board',
-    settleMs: 2000,
+    waitUntil: 'load',
+    settleMs: 2500,
   },
   { file: 'operations-runs.png', path: '/operations/runs', name: 'Operations — Runs' },
   {
