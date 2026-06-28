@@ -46,13 +46,32 @@ The web app polls every **3s** (TanStack Query). Run detail still uses SSE on `/
 | Review approval | `/operations/approvals` |
 | New request | `POST /requests` `{ body, autoStart: false }` |
 
+## View modes
+
+| Mode | Description |
+|------|-------------|
+| **Kanban** (default) | Horizontal columns with dnd-kit drag-to-start |
+| **List** | Flat table sorted by `updatedAt`; column badge per row |
+
+View preference persists in `localStorage` (`axplane-operations-board-view`).
+
+## KPI strip
+
+Six tiles above the toolbar: **Total**, **Ready** (Inbox + Ready), **Active** (running count from API), **Approvals**, **Done**, **Failed**.
+
+## Kanban polish
+
+- **Column tints:** Kilroy-style background per column (`COLUMN_TONE` in `board-types.ts`)
+- **Column dots:** Color-coded status dot in each column header
+- **Hide empty columns:** Toggle (default on); always shows Ready, Queued, Running, Needs approval even when empty
+
 ## Drag-and-drop (dnd-kit)
 
 - **Draggable:** cards in Inbox / Ready (no run yet) — grip handle on the left
 - **Drop targets:** Queued or Running columns → same as Start run
 - Other columns are read-only (position is server-projected)
 
-Components: `apps/web/app/operations/board/` (`board-kanban.tsx`, `board-card.tsx`, `board-types.ts`).
+Components: `apps/web/app/operations/board/` (`page.tsx`, `board-kanban.tsx`, `board-list.tsx`, `board-kpi-strip.tsx`, `board-card.tsx`, `board-types.ts`).
 
 ## Dev notes
 
@@ -63,5 +82,5 @@ Components: `apps/web/app/operations/board/` (`board-kanban.tsx`, `board-card.ts
 
 - Curated boards / domain stage columns (Option B — ben-agents3 ledger pattern)
 - SSE push instead of poll
-- List ⇄ Board toggle, inspect side panel, column tints
+- Inspect side panel on card click
 - Drag to Done/Failed (no backing API)

@@ -22,7 +22,10 @@ import {
 } from './board-card';
 import {
   COLUMN_ACCENT,
+  COLUMN_DOT,
+  COLUMN_TONE,
   DROP_START_COLUMNS,
+  filterVisibleColumns,
   type BoardColumn,
   isColumnDropTarget,
 } from './board-types';
@@ -50,24 +53,28 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/20 border-t-4',
-        COLUMN_ACCENT[column.id] ?? '',
-        showDropHint && isOver && 'ring-2 ring-primary bg-primary/5',
-        showDropHint && !isOver && 'ring-1 ring-primary/20',
+        'flex w-72 shrink-0 flex-col rounded-xl border border-t-4 p-0 shadow-sm',
+        COLUMN_ACCENT[column.id] ?? 'border-t-border',
+        COLUMN_TONE[column.id] ?? 'bg-muted/20',
+        showDropHint && isOver && 'ring-2 ring-primary',
+        showDropHint && !isOver && acceptsDrop && 'ring-1 ring-primary/25',
       )}
     >
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between px-3 py-2.5">
         <div>
-          <h3 className="text-sm font-semibold">{column.label}</h3>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('h-2 w-2 rounded-full', COLUMN_DOT[column.id] ?? 'bg-muted-foreground')} />
+            <h3 className="text-sm font-semibold">{column.label}</h3>
+          </div>
           {acceptsDrop ? (
-            <p className="text-[10px] text-muted-foreground">Drop here to start run</p>
+            <p className="mt-0.5 pl-3.5 text-[10px] text-muted-foreground">Drop here to start run</p>
           ) : null}
         </div>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+        <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
           {column.cards.length}
         </span>
       </div>
-      <div className="flex max-h-[calc(100vh-18rem)] flex-col gap-2 overflow-y-auto px-2 pb-3">
+      <div className="flex max-h-[calc(100vh-20rem)] flex-col gap-2 overflow-y-auto px-2 pb-3">
         {column.cards.length === 0 ? (
           <p
             className={cn(
@@ -97,10 +104,12 @@ export function BoardKanban({
   columns,
   onStartRun,
   startingRequestId,
+  hideEmptyColumns,
 }: {
   columns: BoardColumn[];
   onStartRun: (requestId: string) => void;
   startingRequestId: string | null;
+  hideEmptyColumns: boolean;
 }) {
   const [activeCard, setActiveCard] = useState<{ card: TaskDragData['card']; columnId: string } | null>(null);
 
@@ -111,14 +120,8 @@ export function BoardKanban({
   );
 
   const visibleColumns = useMemo(
-    () => columns.filter(
-      (column) => column.cards.length > 0
-        || column.id === 'ready'
-        || column.id === 'running'
-        || column.id === 'needs_approval'
-        || DROP_START_COLUMNS.has(column.id),
-    ),
-    [columns],
+    () => filterVisibleColumns(columns, hideEmptyColumns),
+    [columns, hideEmptyColumns],
   );
 
   function onDragStart(event: DragStartEvent) {

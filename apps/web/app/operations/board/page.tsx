@@ -1,27 +1,49 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { LayoutGrid, List, Plus } from 'lucide-react';
 import { api, API_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { BoardKanban } from './board-kanban';
-import type { OperationsBoardResponse } from './board-types';
+import { BoardKpiStrip } from './board-kpi-strip';
+import { BoardListView } from './board-list';
+import { flattenBoardCards, type OperationsBoardResponse } from './board-types';
 
 type Agent = { id: string; name: string; enabled: boolean };
 type Run = { id: string; requestId: string; agentId: string; status: string };
+type BoardView = 'kanban' | 'list';
+
+const VIEW_STORAGE_KEY = 'axplane-operations-board-view';
+
+function loadViewPreference(): BoardView {
+  if (typeof window === 'undefined') return 'kanban';
+  return window.localStorage.getItem(VIEW_STORAGE_KEY) === 'list' ? 'list' : 'kanban';
+}
 
 export default function OperationsBoardPage() {
   const queryClient = useQueryClient();
   const [agentFilter, setAgentFilter] = useState('');
   const [runKindFilter, setRunKindFilter] = useState('');
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [hideEmptyColumns, setHideEmptyColumns] = useState(true);
+  const [view, setView] = useState<BoardView>('kanban');
   const [newBody, setNewBody] = useState('');
   const [showComposer, setShowComposer] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [startingRequestId, setStartingRequestId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setView(loadViewPreference());
+  }, []);
+
+  function setBoardView(next: BoardView) {
+    setView(next);
+    window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+  }
 
   const queryPath = useMemo(() => {
     const params = new URLSearchParams();
@@ -42,6 +64,11 @@ export default function OperationsBoardPage() {
     queryKey: ['agents'],
     queryFn: () => api<Agent[]>('/agents'),
   });
+
+  const listCards = useMemo(
+    () => (board.data ? flattenBoardCards(board.data.columns) : []),
+    [board.data],
+  );
 
   const invalidateBoard = () => {
     void queryClient.invalidateQueries({ queryKey: ['operations-board'] });
@@ -86,8 +113,37 @@ export default function OperationsBoardPage() {
 
   return (
     <div className="space-y-4">
+      {board.data ? (
+        <BoardKpiStrip columns={board.data.columns} counts={board.data.counts} />
+      ) : null}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="inline-flex rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition',
+                view === 'kanban' ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => setBoardView('kanban')}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+              Kanban
+            </button>
+            <button
+              type="button"
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition',
+                view === 'list' ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => setBoardView('list')}
+            >
+              <List className="h-3.5 w-3.5" aria-hidden />
+              List
+            </button>
+          </div>
+
           <label className="flex items-center gap-2">
             <span className="text-muted-foreground">Agent</span>
             <select
@@ -121,29 +177,34 @@ export default function OperationsBoardPage() {
               checked={attentionOnly}
               onChange={(e) => setAttentionOnly(e.target.checked)}
             />
-            Needs attention only
+            Needs attention
           </label>
+          {view === 'kanban' ? (
+            <label className="flex items-center gap-2 text-foreground">
+              <input
+                type="checkbox"
+                checked={hideEmptyColumns}
+                onChange={(e) => setHideEmptyColumns(e.target.checked)}
+              />
+              Hide empty columns
+            </label>
+          ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {board.data ? (
-            <p className="whitespace-nowrap text-xs text-muted-foreground">
-              {board.data.counts.total} cards · {board.data.counts.activeRuns} active · {board.data.counts.pendingApprovals} approvals
-            </p>
-          ) : null}
-          <Button
-            className="shrink-0 whitespace-nowrap bg-secondary text-secondary-foreground hover:opacity-90"
-            onClick={() => setShowComposer((value) => !value)}
-          >
-            <Plus className="h-4 w-4 shrink-0" aria-hidden />
-            New request
-          </Button>
-        </div>
+        <Button
+          className="shrink-0 whitespace-nowrap bg-secondary text-secondary-foreground hover:opacity-90"
+          onClick={() => setShowComposer((value) => !value)}
+        >
+          <Plus className="h-4 w-4 shrink-0" aria-hidden />
+          New request
+        </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Drag cards from <strong>Inbox</strong> or <strong>Ready</strong> onto <strong>Queued</strong> or <strong>Running</strong> to start a run — or use the Start run button.
-      </p>
+      {view === 'kanban' ? (
+        <p className="text-xs text-muted-foreground">
+          Drag from <strong>Inbox</strong> or <strong>Ready</strong> onto <strong>Queued</strong> or <strong>Running</strong> to start — or use Start run.
+        </p>
+      ) : null}
 
       {showComposer ? (
         <Card className="space-y-3 p-4">
@@ -177,11 +238,20 @@ export default function OperationsBoardPage() {
       {board.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading board…</p>
       ) : board.data ? (
-        <BoardKanban
-          columns={board.data.columns}
-          onStartRun={startRun}
-          startingRequestId={startingRequestId}
-        />
+        view === 'kanban' ? (
+          <BoardKanban
+            columns={board.data.columns}
+            onStartRun={startRun}
+            startingRequestId={startingRequestId}
+            hideEmptyColumns={hideEmptyColumns}
+          />
+        ) : (
+          <BoardListView
+            cards={listCards}
+            onStartRun={startRun}
+            startingRequestId={startingRequestId}
+          />
+        )
       ) : null}
     </div>
   );
