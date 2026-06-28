@@ -520,12 +520,15 @@ function layoutRanks(nodes: Node[], heights: Record<string, number>): Node[] {
 }
 
 // Re-fit the viewport when the run changes. Must live inside <ReactFlowProvider>.
-function FitOnRun({ runKey }: { runKey?: string }) {
+function FitOnRun({ graphKey }: { graphKey?: string }) {
   const { fitView } = useReactFlow();
   useEffect(() => {
-    const id = setTimeout(() => void fitView({ padding: 0.18, duration: 300 }), 90);
+    const id = setTimeout(
+      () => void fitView({ padding: 0.06, duration: 280, maxZoom: 1.15, minZoom: 0.08 }),
+      120,
+    );
     return () => clearTimeout(id);
-  }, [runKey, fitView]);
+  }, [graphKey, fitView]);
   return null;
 }
 
@@ -744,17 +747,18 @@ export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, rep
             onNodesChange={onNodesChange}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.18 }}
+            fitViewOptions={{ padding: 0.06, maxZoom: 1.15 }}
             proOptions={{ hideAttribution: true }}
             nodesConnectable={false}
             nodesDraggable={false}
             edgesFocusable={false}
             deleteKeyCode={null}
-            minZoom={0.2}
+            minZoom={0.08}
+            maxZoom={1.5}
           >
             <Background gap={16} color="#334155" />
             <Controls showInteractive={false} className="!bg-slate-900 !border-slate-700" />
-            <FitOnRun runKey={runId ?? undefined} />
+            <FitOnRun graphKey={`${runId ?? 'idle'}-${laidOut.length}`} />
           </ReactFlow>
         </ReactFlowProvider>
       </div>

@@ -35,6 +35,7 @@ export function ObservatoryView() {
   const [runId, setRunId] = useState<string | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
   const [draftRunId, setDraftRunId] = useState('');
+  const [showTracePanel, setShowTracePanel] = useState(false);
   const traceId = searchParams.get('traceId');
 
   useEffect(() => {
@@ -75,91 +76,104 @@ export function ObservatoryView() {
     setDraftRunId(session.runId);
   }, []);
 
-  return (
-    <div className="flex h-[calc(100vh-5rem)] min-h-[600px] flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">Observatory</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Live agent routing map + eval replay on one canvas.{' '}
-          <Link href="/workflows/dispatcher" className="text-sky-400 hover:underline">
-            Dispatcher cockpit
-          </Link>
-        </p>
-      </div>
+  const statusLine = replaySession.data?.failureReason ? (
+    <span className="text-red-400">{replaySession.data.failureReason}</span>
+  ) : replaySession.data?.status === 'passed' ? (
+    <span className="text-emerald-400">Case {caseId ?? replaySession.data.caseId} passed</span>
+  ) : replaySession.data?.status === 'running' ? (
+    <span className="text-sky-400">Replay running…</span>
+  ) : null;
 
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-              tab === t.id
-                ? 'bg-secondary text-secondary-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+  return (
+    <div className="flex h-[calc(100vh-4.5rem)] min-h-[640px] flex-col gap-2">
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Observatory</h1>
+          <p className="text-sm text-muted-foreground">
+            Routing map + eval replay.{' '}
+            <Link href="/workflows/dispatcher" className="text-sky-400 hover:underline">
+              Dispatcher
+            </Link>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                tab === t.id
+                  ? 'bg-secondary text-secondary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === 'live' ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <ObservatoryRoutingEvalPanel activeRunId={runId} onReplayStarted={onReplayStarted} />
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <details className="shrink-0 rounded-md border border-border bg-card/40 px-3 py-2">
+            <summary className="cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground">
+              Routing eval cases — pick a case to replay
+            </summary>
+            <div className="mt-2">
+              <ObservatoryRoutingEvalPanel activeRunId={runId} onReplayStarted={onReplayStarted} />
+            </div>
+          </details>
 
-          {replaySession.data?.failureReason ? (
-            <p className="text-sm text-red-400">{replaySession.data.failureReason}</p>
-          ) : null}
-          {replaySession.data?.status === 'passed' ? (
-            <p className="text-sm text-emerald-400">Case {caseId ?? replaySession.data.caseId} passed</p>
-          ) : null}
-
-          <form
-            className="flex shrink-0 flex-wrap items-center gap-2 text-sm"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setRunId(draftRunId.trim() || null);
-            }}
+          <div
+            className={`grid min-h-0 flex-1 gap-3 ${showTracePanel ? 'lg:grid-cols-[1fr_280px]' : 'grid-cols-1'}`}
           >
-            <label className="text-muted-foreground">Watch run</label>
-            <input
-              value={draftRunId}
-              onChange={(e) => setDraftRunId(e.target.value)}
-              placeholder="run id from replay or live chat"
-              className="min-w-[18rem] flex-1 rounded-md border border-border bg-card px-3 py-1.5 font-mono text-xs"
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
-            >
-              Watch
-            </button>
-            {runId ? (
-              <span className="font-mono text-xs text-emerald-400">● {runId.slice(0, 8)}…</span>
-            ) : (
-              <span className="text-xs text-muted-foreground">pick a case above to replay</span>
-            )}
-          </form>
-
-          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_360px]">
-            <Card className="flex min-h-[280px] flex-col overflow-hidden p-0 lg:min-h-0">
-              <div className="border-b border-border px-4 py-3">
-                <h2 className="text-lg font-semibold">
-                  {replay ? `Replay · ${replay.caseId}` : 'Live conversation flow'}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Green = path taken; dashed ghosts = expected delegates; amber/red = routing miss.
-                </p>
+            <Card className="flex min-h-0 flex-col overflow-hidden p-0">
+              <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold">
+                    {replay ? `Replay · ${replay.caseId}` : 'Conversation flow'}
+                  </h2>
+                  {statusLine ? <p className="mt-0.5 text-xs">{statusLine}</p> : null}
+                </div>
+                <form
+                  className="flex flex-wrap items-center gap-2 text-xs"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setRunId(draftRunId.trim() || null);
+                  }}
+                >
+                  <input
+                    value={draftRunId}
+                    onChange={(e) => setDraftRunId(e.target.value)}
+                    placeholder="run id"
+                    className="w-44 rounded-md border border-border bg-card px-2 py-1 font-mono sm:w-52"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md bg-secondary px-2 py-1 font-medium text-secondary-foreground"
+                  >
+                    Watch
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  onClick={() => setShowTracePanel((v) => !v)}
+                  className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  {showTracePanel ? 'Hide reasoning' : 'Show reasoning'}
+                </button>
               </div>
-              <div className="flow-canvas-host min-h-[240px] flex-1 bg-card">
+              <div className="observatory-canvas-host min-h-0 flex-1 bg-card">
                 <ConversationFlowCanvas runId={runId} events={events} replay={replay} baseUrl={API_URL} />
               </div>
             </Card>
 
-            <Card className="min-h-0 overflow-auto p-3">
-              <ObservatoryTracePanel events={events} traceId={traceId} />
-            </Card>
+            {showTracePanel ? (
+              <Card className="min-h-0 overflow-auto p-3 lg:max-h-none">
+                <ObservatoryTracePanel events={events} traceId={traceId} />
+              </Card>
+            ) : null}
           </div>
         </div>
       ) : (

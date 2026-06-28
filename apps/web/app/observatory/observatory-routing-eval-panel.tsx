@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 
 type DispatcherCaseSummary = {
   id: string;
@@ -82,7 +81,7 @@ export function ObservatoryRoutingEvalPanel({
   });
 
   return (
-    <Card className="space-y-3 p-4">
+    <div className="space-y-3">
       <div>
         <h3 className="font-semibold">Routing eval replay</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -162,6 +161,6 @@ export function ObservatoryRoutingEvalPanel({
           </tbody>
         </table>
       </div>
-    </Card>
+    </div>
   );
 }
