@@ -9,6 +9,7 @@ import { ConversationFlowCanvas, type FlowTraceReplayContext } from '@axplane/fl
 import DispatcherTabPage from '@/app/workflows/dispatcher/page';
 import { Card } from '@/components/ui/card';
 import { API_URL, api } from '@/lib/api';
+import { ObservatoryEvalPanel } from './observatory-eval-panel';
 import { ObservatoryRoutingEvalPanel } from './observatory-routing-eval-panel';
 import { ObservatoryTracePanel } from './observatory-trace-panel';
 
@@ -175,6 +176,15 @@ export function ObservatoryView() {
               </Card>
             ) : null}
           </div>
+
+          <details className="shrink-0 rounded-md border border-border bg-card/40 px-3 py-2">
+            <summary className="cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground">
+              Eval Lab heatmap — suite pass/fail matrix (Slice D)
+            </summary>
+            <div className="mt-2">
+              <ObservatoryEvalPanel />
+            </div>
+          </details>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">

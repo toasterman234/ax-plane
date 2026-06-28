@@ -14,10 +14,12 @@ function cellClass(status: string, score: number): string {
 type CaseHeatmapProps = {
   matrix: EvalMatrix;
   selectedRunId?: string | null;
+  selectedCaseId?: string | null;
   onSelectRun?: (runId: string) => void;
+  onSelectCell?: (caseId: string, runId: string) => void;
 };
 
-export function CaseHeatmap({ matrix, selectedRunId, onSelectRun }: CaseHeatmapProps) {
+export function CaseHeatmap({ matrix, selectedRunId, selectedCaseId, onSelectRun, onSelectCell }: CaseHeatmapProps) {
   const cellMap = new Map(matrix.cells.map((cell) => [cellKey(cell.caseId, cell.runId), cell]));
 
   if (matrix.runs.length === 0) {
@@ -68,9 +70,13 @@ export function CaseHeatmap({ matrix, selectedRunId, onSelectRun }: CaseHeatmapP
                       className={cn(
                         'inline-flex min-w-[2.5rem] items-center justify-center rounded px-1.5 py-1 font-mono ring-1',
                         cellClass(cell.status, cell.score),
-                        selectedRunId === run.id && 'ring-2 ring-sky-500',
+                        selectedRunId === run.id && selectedCaseId === evalCase.id && 'ring-2 ring-sky-500',
+                        selectedRunId === run.id && !selectedCaseId && 'ring-2 ring-sky-500/60',
                       )}
-                      onClick={() => onSelectRun?.(run.id)}
+                      onClick={() => {
+                        onSelectRun?.(run.id);
+                        onSelectCell?.(evalCase.id, run.id);
+                      }}
                     >
                       {cell.score}
                     </button>
