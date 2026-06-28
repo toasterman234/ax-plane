@@ -73,23 +73,8 @@ export const COLUMN_DOT: Record<string, string> = {
   failed: 'bg-red-400',
 };
 
-/** Drop-target columns to keep visible when upstream work exists. */
-export const PINNED_EMPTY_COLUMNS = new Set(['ready', 'queued', 'running', 'needs_approval']);
-
-function columnCardCount(columns: BoardColumn[], columnId: string): number {
-  return columns.find((column) => column.id === columnId)?.cards.length ?? 0;
-}
-
-/** Pin empty workflow columns only when there is inbox/ready work or active pipeline stages. */
-export function shouldPinEmptyWorkflowColumns(columns: BoardColumn[]): boolean {
-  const inboxReady =
-    columnCardCount(columns, 'inbox') + columnCardCount(columns, 'ready');
-  const pipelineCards =
-    columnCardCount(columns, 'queued')
-    + columnCardCount(columns, 'running')
-    + columnCardCount(columns, 'needs_approval');
-  return inboxReady > 0 || pipelineCards > 0;
-}
+/** Workflow columns to keep visible even when empty (hide-empty toggle). */
+export const PINNED_EMPTY_COLUMNS = new Set(['inbox', 'ready', 'queued', 'running', 'needs_approval']);
 
 const COLUMN_DISPLAY_ORDER = [
   'inbox',
@@ -116,13 +101,9 @@ export function sortColumnsForDisplay(columns: BoardColumn[]): BoardColumn[] {
 export function filterVisibleColumns(columns: BoardColumn[], hideEmpty: boolean): BoardColumn[] {
   if (!hideEmpty) return columns;
 
-  const pinWorkflowEmpties = shouldPinEmptyWorkflowColumns(columns);
-
-  const filtered = columns.filter((column) => {
-    if (column.cards.length > 0) return true;
-    if (!pinWorkflowEmpties) return false;
-    return PINNED_EMPTY_COLUMNS.has(column.id);
-  });
+  const filtered = columns.filter(
+    (column) => column.cards.length > 0 || PINNED_EMPTY_COLUMNS.has(column.id),
+  );
 
   return sortColumnsForDisplay(filtered);
 }

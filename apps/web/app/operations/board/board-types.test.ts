@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterVisibleColumns,
-  shouldPinEmptyWorkflowColumns,
   sortColumnsForDisplay,
   type BoardColumn,
 } from './board-types';
@@ -33,23 +32,17 @@ const ALL_COLUMNS: BoardColumn[] = [
   column('failed', 0),
 ];
 
-describe('shouldPinEmptyWorkflowColumns', () => {
-  it('is false when only terminal columns have cards', () => {
-    const columns = ALL_COLUMNS.map((col) => (col.id === 'done' ? column('done', 3) : col));
-    expect(shouldPinEmptyWorkflowColumns(columns)).toBe(false);
-  });
-
-  it('is true when inbox has cards', () => {
-    const columns = ALL_COLUMNS.map((col) => (col.id === 'inbox' ? column('inbox', 1) : col));
-    expect(shouldPinEmptyWorkflowColumns(columns)).toBe(true);
-  });
-});
-
 describe('filterVisibleColumns', () => {
-  it('shows only populated columns when all work is done', () => {
+  it('shows workflow columns plus done when all work is complete', () => {
     const columns = ALL_COLUMNS.map((col) => (col.id === 'done' ? column('done', 50) : col));
-    const visible = filterVisibleColumns(columns, true);
-    expect(visible.map((col) => col.id)).toEqual(['done']);
+    const visible = filterVisibleColumns(columns, true).map((col) => col.id);
+    expect(visible[0]).toBe('done');
+    expect(visible).toContain('inbox');
+    expect(visible).toContain('ready');
+    expect(visible).toContain('queued');
+    expect(visible).toContain('running');
+    expect(visible).toContain('needs_approval');
+    expect(visible).not.toContain('failed');
   });
 
   it('pins empty drop targets when inbox has work', () => {
