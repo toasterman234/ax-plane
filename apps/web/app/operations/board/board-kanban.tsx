@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -37,12 +37,14 @@ function DroppableColumn({
   startingRequestId,
   activeDragId,
   onInspect,
+  wide,
 }: {
   column: BoardColumn;
   onStartRun: (requestId: string) => void;
   startingRequestId: string | null;
   activeDragId: string | null;
   onInspect?: (card: BoardCard, columnId: string) => void;
+  wide?: boolean;
 }) {
   const acceptsDrop = isColumnDropTarget(column.id);
   const { setNodeRef, isOver } = useDroppable({
@@ -55,8 +57,10 @@ function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
+      data-has-cards={column.cards.length > 0 ? 'true' : 'false'}
       className={cn(
-        'flex w-72 shrink-0 flex-col rounded-xl border border-t-4 p-0 shadow-sm',
+        'flex shrink-0 flex-col rounded-xl border border-t-4 p-0 shadow-sm',
+        wide ? 'min-w-72 flex-1' : 'w-72',
         COLUMN_ACCENT[column.id] ?? 'border-t-border',
         COLUMN_TONE[column.id] ?? 'bg-muted/20',
         showDropHint && isOver && 'ring-2 ring-primary',
@@ -130,6 +134,20 @@ export function BoardKanban({
     [columns, hideEmptyColumns],
   );
 
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const wideColumns = visibleColumns.length <= 3;
+
+  useEffect(() => {
+    const container = boardScrollRef.current;
+    if (!container) return;
+    const firstWithCards = container.querySelector('[data-has-cards="true"]');
+    if (firstWithCards) {
+      firstWithCards.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+    } else {
+      container.scrollLeft = 0;
+    }
+  }, [visibleColumns.map((column) => `${column.id}:${column.cards.length}`).join('|')]);
+
   function onDragStart(event: DragStartEvent) {
     const data = event.active.data.current as TaskDragData | undefined;
     if (data?.type !== 'Task') return;
@@ -162,7 +180,7 @@ export function BoardKanban({
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2">
         {visibleColumns.map((column) => (
           <DroppableColumn
             key={column.id}
@@ -171,6 +189,7 @@ export function BoardKanban({
             startingRequestId={startingRequestId}
             activeDragId={activeCard?.card.requestId ?? null}
             onInspect={onInspect}
+            wide={wideColumns}
           />
         ))}
       </div>

@@ -84,7 +84,7 @@ Six tiles above the toolbar: **Total**, **Ready** (Inbox + Ready), **Active** (r
 
 - **Column tints:** Kilroy-style background per column (`COLUMN_TONE` in `board-types.ts`)
 - **Column dots:** Color-coded status dot in each column header
-- **Hide empty columns:** Toggle (default on); always shows Ready, Queued, Running, Needs approval even when empty
+- **Hide empty columns:** Toggle (default on); hides empty terminal columns; pins empty Queued/Running drop targets only when Inbox/Ready or pipeline stages have work
 
 ## Drag-and-drop (dnd-kit)
 

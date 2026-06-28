@@ -73,8 +73,59 @@ export const COLUMN_DOT: Record<string, string> = {
   failed: 'bg-red-400',
 };
 
-/** Always show these columns even when empty (unless hide-empty is on). */
+/** Drop-target columns to keep visible when upstream work exists. */
 export const PINNED_EMPTY_COLUMNS = new Set(['ready', 'queued', 'running', 'needs_approval']);
+
+function columnCardCount(columns: BoardColumn[], columnId: string): number {
+  return columns.find((column) => column.id === columnId)?.cards.length ?? 0;
+}
+
+/** Pin empty workflow columns only when there is inbox/ready work or active pipeline stages. */
+export function shouldPinEmptyWorkflowColumns(columns: BoardColumn[]): boolean {
+  const inboxReady =
+    columnCardCount(columns, 'inbox') + columnCardCount(columns, 'ready');
+  const pipelineCards =
+    columnCardCount(columns, 'queued')
+    + columnCardCount(columns, 'running')
+    + columnCardCount(columns, 'needs_approval');
+  return inboxReady > 0 || pipelineCards > 0;
+}
+
+const COLUMN_DISPLAY_ORDER = [
+  'inbox',
+  'ready',
+  'queued',
+  'running',
+  'needs_approval',
+  'done',
+  'failed',
+] as const;
+
+function compareColumnOrder(a: BoardColumn, b: BoardColumn): number {
+  return COLUMN_DISPLAY_ORDER.indexOf(a.id as typeof COLUMN_DISPLAY_ORDER[number])
+    - COLUMN_DISPLAY_ORDER.indexOf(b.id as typeof COLUMN_DISPLAY_ORDER[number]);
+}
+
+/** Non-empty columns first so cards are visible without horizontal hunting. */
+export function sortColumnsForDisplay(columns: BoardColumn[]): BoardColumn[] {
+  const withCards = columns.filter((column) => column.cards.length > 0).sort(compareColumnOrder);
+  const empty = columns.filter((column) => column.cards.length === 0).sort(compareColumnOrder);
+  return [...withCards, ...empty];
+}
+
+export function filterVisibleColumns(columns: BoardColumn[], hideEmpty: boolean): BoardColumn[] {
+  if (!hideEmpty) return columns;
+
+  const pinWorkflowEmpties = shouldPinEmptyWorkflowColumns(columns);
+
+  const filtered = columns.filter((column) => {
+    if (column.cards.length > 0) return true;
+    if (!pinWorkflowEmpties) return false;
+    return PINNED_EMPTY_COLUMNS.has(column.id);
+  });
+
+  return sortColumnsForDisplay(filtered);
+}
 
 export type BoardCardWithColumn = BoardCard & {
   columnId: string;
@@ -93,13 +144,6 @@ export function flattenBoardCards(columns: BoardColumn[]): BoardCardWithColumn[]
       columnLabel: column.label,
     })))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
-export function filterVisibleColumns(columns: BoardColumn[], hideEmpty: boolean): BoardColumn[] {
-  if (!hideEmpty) return columns;
-  return columns.filter(
-    (column) => column.cards.length > 0 || PINNED_EMPTY_COLUMNS.has(column.id),
-  );
 }
 
 /** Columns whose cards can be dragged to start work. */
