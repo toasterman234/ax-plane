@@ -20,6 +20,12 @@ const shots = [
   { file: 'agents.png', path: '/agents', name: 'Agents registry' },
   { file: 'agent-editor.png', path: '/agents/default_ax_agent', name: 'Agent editor' },
   { file: 'operations-requests.png', path: '/operations/requests', name: 'Operations — Requests' },
+  {
+    file: 'operations-board.png',
+    path: '/operations/board',
+    name: 'Operations — Board',
+    settleMs: 2000,
+  },
   { file: 'operations-runs.png', path: '/operations/runs', name: 'Operations — Runs' },
   {
     file: 'run-detail.png',

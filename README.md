@@ -23,6 +23,10 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
   <img src="docs/screenshots/home.png" alt="Ax Plane mission control home — system status, needs attention, setup checklist, and hub navigation" width="900" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/operations-board.png" alt="Operations board — kanban with KPI strip, live SSE updates, drag-to-start, and inspect panel" width="900" />
+</p>
+
 | Agents registry | Run detail |
 | :---: | :---: |
 | <img src="docs/screenshots/agents.png" alt="Agent registry and config" width="440" /> | <img src="docs/screenshots/run-detail.png" alt="Run detail with output and tool calls" width="440" /> |
@@ -39,7 +43,7 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
 | :---: | :---: |
 | <img src="docs/screenshots/dispatcher.png" alt="AX Dispatcher team orchestrator canvas" width="440" /> | <img src="docs/screenshots/agents-eval.png" alt="Eval suites, runs, and case results" width="440" /> |
 
-More captures: [`docs/screenshots/`](docs/screenshots/) (requests inbox, runs list, agent editor, Forge).
+More captures: [`docs/screenshots/`](docs/screenshots/) (operations board, requests inbox, runs list, agent editor, Forge).
 
 Regenerate locally while the dev stack is up on `:3010`:
 
@@ -323,7 +327,7 @@ The runtime inbox — where work enters and gets executed.
 
 ### Board (`/operations/board`)
 
-Kanban view joining **requests**, **latest top-level run**, and **pending approvals** — no separate board store; columns are derived from live Postgres state.
+Kanban (and list) view joining **requests**, **latest top-level run**, and **pending approvals** — no separate board store; columns are derived from live Postgres state.
 
 | Column | Meaning |
 |--------|---------|
@@ -333,11 +337,16 @@ Kanban view joining **requests**, **latest top-level run**, and **pending approv
 
 | Feature | Description |
 |---------|-------------|
-| **Live refresh** | Polls `GET /operations/board` every 3s |
+| **Live updates (SSE)** | `GET /operations/board/stream` — snapshot events when board state changes (~1s server poll + fingerprint dedupe) |
+| **KPI strip** | Total · Ready · Active · Approvals · Done · Failed |
+| **Kanban ⇄ List** | Toggle with persisted view preference |
+| **Column tints** | Kilroy-style column backgrounds; hide-empty-columns toggle |
+| **Drag-to-start** | Drag Inbox/Ready cards onto Queued or Running → `POST /runs` |
+| **Inspect panel** | Click card → slide-over with full request body, routing, live run SSE, pending approvals |
 | **Filters** | Agent, run kind (`agent` / `graph` / `axflow` / `axdispatcher`), needs-attention-only |
-| **Start run** | From Ready/Inbox cards → `POST /runs` (button or drag onto Queued/Running) |
-| **Open run** | Deep-link to run detail + SSE timeline |
 | **New request** | Inline composer (submit without auto-start) |
+
+Operator doc: [`docs/operations-board.md`](docs/operations-board.md)
 
 List views (**Requests**, **Runs**, **Approvals**) remain for power-user drill-down.
 
@@ -514,6 +523,7 @@ Roadmaps: [`docs/workflows-roadmap.md`](docs/workflows-roadmap.md) · [`docs/age
 | Doc | Contents |
 |-----|----------|
 | [`HANDOFF.md`](HANDOFF.md) | Operator brief, gotchas, API reference |
+| [`docs/operations-board.md`](docs/operations-board.md) | Operations kanban — columns, SSE, drag-to-start, inspect panel |
 | [`docs/ax-surface-map.md`](docs/ax-surface-map.md) | axllm.dev vs Ax Plane capability grid |
 | [`docs/flow-canvas.md`](docs/flow-canvas.md) | Canvas package + axflow/dispatcher proxy |
 | [`docs/workflows.md`](docs/workflows.md) | Graph child-run workflows |
