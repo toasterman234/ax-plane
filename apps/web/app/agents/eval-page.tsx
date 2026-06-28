@@ -1,48 +1,16 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DEFAULT_AGENT_ID } from '@/lib/constants';
+import type { AgentRow, AgentVersion, EvalRun, EvalSuite } from '@/lib/eval-types';
+import { fetchEvalMatrix } from '@/lib/eval-matrix-client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-type EvalSuite = {
-  id: string;
-  name: string;
-  description: string;
-  cases: Array<{ id: string; name: string; taskText: string }>;
-};
-
-type EvalRun = {
-  id: string;
-  suiteId: string;
-  agentId: string;
-  agentVersionId: string | null;
-  status: string;
-  mode: string;
-  summaryJson: {
-    caseCount: number;
-    passedCases: number;
-    failedCases: number;
-    averageScore: number;
-    mode: string;
-  } | null;
-  createdAt: string;
-  completedAt: string | null;
-  results?: Array<{
-    id: string;
-    caseId: string;
-    caseName: string;
-    runId: string | null;
-    status: string;
-    score: number;
-  }>;
-};
-
-type AgentRow = { id: string; name: string };
-type AgentVersion = { id: string; version: number; isCurrent: boolean };
+import { CaseHeatmap } from '@/components/eval/case-heatmap';
+import { ScoreTrendChart } from '@/components/eval/score-trend-chart';
+import { EvalCaseRow } from '@/components/eval/eval-case-row';
 
 export default function EvalPage() {
   const [message, setMessage] = useState<string | null>(null);
@@ -57,29 +25,74 @@ export default function EvalPage() {
 
   const suites = useQuery({ queryKey: ['eval-suites'], queryFn: () => api<EvalSuite[]>('/eval/suites') });
   const agents = useQuery({ queryKey: ['agents'], queryFn: () => api<AgentRow[]>('/agents') });
-  const runs = useQuery({ queryKey: ['eval-runs'], queryFn: () => api<EvalRun[]>('/eval/runs') });
+  const activeSuiteId = selectedSuiteId || suites.data?.[0]?.id || '';
+  const activeSuite = useMemo(
+    () => suites.data?.find((suite) => suite.id === activeSuiteId) ?? null,
+    [suites.data, activeSuiteId],
+  );
+
+  const runs = useQuery({
+    queryKey: ['eval-runs', activeSuiteId, agentId],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (activeSuiteId) params.set('suiteId', activeSuiteId);
+      if (agentId) params.set('agentId', agentId);
+      const query = params.toString();
+      return api<EvalRun[]>(`/eval/runs${query ? `?${query}` : ''}`);
+    },
+    enabled: Boolean(activeSuiteId),
+  });
+
+  const matrix = useQuery({
+    queryKey: ['eval-matrix', activeSuiteId, agentId],
+    queryFn: () => fetchEvalMatrix({
+      suiteId: activeSuiteId,
+      suite: activeSuite!,
+      agentId,
+      limit: 8,
+    }),
+    enabled: Boolean(activeSuiteId && activeSuite),
+  });
+
   const versions = useQuery({
     queryKey: ['agent-versions', agentId],
     queryFn: () => api<AgentVersion[]>(`/agents/${agentId}/versions`),
     enabled: Boolean(agentId),
   });
+
   const runDetail = useQuery({
     queryKey: ['eval-run', selectedRunId],
     queryFn: () => api<EvalRun>(`/eval/runs/${selectedRunId}`),
     enabled: Boolean(selectedRunId),
   });
+
   const compareRun = useQuery({
     queryKey: ['eval-run', compareRunId],
     queryFn: () => api<EvalRun>(`/eval/runs/${compareRunId}`),
     enabled: Boolean(compareRunId),
   });
 
-  const activeSuiteId = selectedSuiteId || suites.data?.[0]?.id || '';
+  const versionById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const version of versions.data ?? []) map.set(version.id, version.version);
+    return map;
+  }, [versions.data]);
 
-  const suiteRuns = useMemo(
-    () => (runs.data ?? []).filter((run) => run.suiteId === activeSuiteId),
-    [runs.data, activeSuiteId],
-  );
+  const compareResultsByCaseId = useMemo(() => {
+    const map = new Map<string, NonNullable<EvalRun['results']>[number]>();
+    for (const row of compareRun.data?.results ?? []) map.set(row.caseId, row);
+    return map;
+  }, [compareRun.data?.results]);
+
+  const comparison = useMemo(() => {
+    if (!runDetail.data?.summaryJson || !compareRun.data?.summaryJson) return null;
+    const a = runDetail.data.summaryJson;
+    const b = compareRun.data.summaryJson;
+    return {
+      scoreDelta: a.averageScore - b.averageScore,
+      passedDelta: a.passedCases - b.passedCases,
+    };
+  }, [runDetail.data, compareRun.data]);
 
   async function seedDemoSuite() {
     setMessage(null);
@@ -109,7 +122,7 @@ export default function EvalPage() {
           mode,
         }),
       });
-      await runs.refetch();
+      await Promise.all([runs.refetch(), matrix.refetch()]);
       setSelectedRunId(result.evalRunId);
       setMessage(
         `Eval finished — ${result.summary?.passedCases ?? 0}/${result.summary?.caseCount ?? 0} cases passed (avg ${result.summary?.averageScore ?? 0}%)`,
@@ -121,25 +134,30 @@ export default function EvalPage() {
     }
   }
 
-  const comparison = useMemo(() => {
-    if (!runDetail.data?.summaryJson || !compareRun.data?.summaryJson) return null;
-    const a = runDetail.data.summaryJson;
-    const b = compareRun.data.summaryJson;
-    return {
-      scoreDelta: a.averageScore - b.averageScore,
-      passedDelta: a.passedCases - b.passedCases,
-    };
-  }, [runDetail.data, compareRun.data]);
+  function selectRun(runId: string) {
+    setSelectedRunId(runId);
+  }
+
+  const suiteRuns = runs.data ?? [];
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Eval lab</h1>
+        <p className="text-sm text-muted-foreground">
+          Run suites against agents, compare results, and spot regressions with the case heatmap and score trend.
+        </p>
+      </div>
+
       {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Suites</h2>
-          <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={seedDemoSuite}>Install smoke suite</Button>
+          <Button className="bg-secondary text-secondary-foreground hover:opacity-90" onClick={seedDemoSuite}>
+            Install smoke suite
+          </Button>
         </div>
         {(suites.data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No suites yet. Install the smoke suite to start.</p>
@@ -212,30 +230,72 @@ export default function EvalPage() {
         </div>
       </Card>
 
+      {activeSuiteId ? (
+        <Card className="space-y-6 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Insights</h2>
+            <p className="text-sm text-muted-foreground">
+              Last 8 finished runs for this suite and agent. Click a column or chart point to open run detail.
+            </p>
+          </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-foreground">Case heatmap</h3>
+              {matrix.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading matrix…</p>
+              ) : matrix.isError ? (
+                <p className="text-sm text-red-400">
+                  {matrix.error instanceof Error ? matrix.error.message : 'Failed to load heatmap'}
+                </p>
+              ) : matrix.data ? (
+                <CaseHeatmap
+                  matrix={matrix.data}
+                  selectedRunId={selectedRunId}
+                  onSelectRun={selectRun}
+                />
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-foreground">Score trend</h3>
+              <ScoreTrendChart
+                runs={suiteRuns}
+                versionById={versionById}
+                selectedRunId={selectedRunId}
+                onSelectRun={selectRun}
+              />
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold">Recent runs</h2>
-        <ul className="space-y-2">
-          {suiteRuns.map((run) => (
-            <li key={run.id}>
-              <button
-                type="button"
-                onClick={() => setSelectedRunId(run.id)}
-                className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
-                  selectedRunId === run.id ? 'border-sky-700 bg-sky-950/20' : 'border-border'
-                }`}
-              >
-                <div className="flex flex-wrap gap-3 text-foreground">
-                  <span>{new Date(run.createdAt).toLocaleString()}</span>
-                  <span>{run.mode}</span>
-                  <span className={run.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}>{run.status}</span>
-                  {run.summaryJson ? (
-                    <span>{run.summaryJson.passedCases}/{run.summaryJson.caseCount} passed · avg {run.summaryJson.averageScore}%</span>
-                  ) : null}
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {suiteRuns.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No runs for this suite and agent yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {suiteRuns.map((run) => (
+              <li key={run.id}>
+                <button
+                  type="button"
+                  onClick={() => selectRun(run.id)}
+                  className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
+                    selectedRunId === run.id ? 'border-sky-700 bg-sky-950/20' : 'border-border'
+                  }`}
+                >
+                  <div className="flex flex-wrap gap-3 text-foreground">
+                    <span>{new Date(run.createdAt).toLocaleString()}</span>
+                    <span>{run.mode}</span>
+                    <span className={run.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}>{run.status}</span>
+                    {run.summaryJson ? (
+                      <span>{run.summaryJson.passedCases}/{run.summaryJson.caseCount} passed · avg {run.summaryJson.averageScore}%</span>
+                    ) : null}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       {runDetail.data ? (
@@ -266,16 +326,11 @@ export default function EvalPage() {
           </div>
           <ul className="space-y-3">
             {(runDetail.data.results ?? []).map((result) => (
-              <li key={result.id} className="rounded-md border border-border p-3 text-sm">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{result.caseName}</span>
-                  <span className={result.status === 'passed' ? 'text-emerald-400' : 'text-red-400'}>{result.status}</span>
-                  <span className="text-muted-foreground">{result.score}%</span>
-                  {result.runId ? (
-                    <Link href={`/runs/${result.runId}`} className="text-sky-400 hover:underline">View run</Link>
-                  ) : null}
-                </div>
-              </li>
+              <EvalCaseRow
+                key={result.id}
+                result={result}
+                compareResult={compareRunId ? compareResultsByCaseId.get(result.caseId) : null}
+              />
             ))}
           </ul>
         </Card>

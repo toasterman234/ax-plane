@@ -1,8 +1,8 @@
 # AxPlane MVP — Agent Handoff
 
 **Repo:** [toasterman234/ax-plane](https://github.com/toasterman234/ax-plane) (public; extracted from private `ax-lab`)  
-**Last updated:** 2026-06-25 (flow-canvas + axflow + dispatcher proxy — full orchestration handoff)  
-**Last commit:** `fe64f78` — dispatcher proxy (`b28b80f`); flow-canvas (`8581375`)
+**Last updated:** 2026-06-28 (Operations board — projection kanban + dnd-kit drag-to-start)  
+**Last commit:** see `git log -1` on your branch
 
 ---
 
@@ -80,6 +80,7 @@ Single-agent runs still use `@axplane/ax-adapter` (`native` or `rlm`) — not ax
 | **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
 | **Dispatcher (governed)** | `runKind: axdispatcher`, worker → `/dispatcher` SSE, `dispatcher.*` events, `/dispatcher` UI + live run | ✅ |
 | **Agent Forge** | `@axplane/forge`, `/agents/forge` UI, `/forge/sessions/*` API — intake → heuristic/LLM scaffold → commit → optimize | ✅ |
+| **Operations board** | `GET /operations/board`, `GET /operations/board/stream` (SSE), `/operations/board` kanban + list, KPI strip, inspect panel, dnd-kit drag-to-start | ✅ |
 
 ### Agent Lab
 
@@ -305,6 +306,9 @@ web → API (optional live SSE proxy) → worker → streamAxFlowRun / streamAxD
 | DB repositories | `packages/db/src/repositories.ts` |
 | Agent Lab UI | `apps/web/app/agents/[id]/agent-lab.tsx` |
 | API health banner | `apps/web/lib/api-health.tsx` |
+| Operations board API | `apps/api/src/operations-board.ts` |
+| Operations board UI | `apps/web/app/operations/board/` |
+| Operations board doc | `docs/operations-board.md` |
 | Ax optimize | `packages/ax-adapter/src/optimize-agent.ts` |
 | LLM router | `packages/router/src/llm-router.ts` |
 | Runtime facade | `packages/runtime/src/factory.ts` |
@@ -316,6 +320,8 @@ web → API (optional live SSE proxy) → worker → streamAxFlowRun / streamAxD
 ```txt
 GET    /health                      # worker heartbeat + axEngine.reachable + dispatcherAvailable
 GET    /dashboard/summary           # Home mission control — health + counts + setup + attention + recent runs
+GET    /operations/board            # Kanban projection — requests + latest run + approvals (?agentId &runKind &attention)
+GET    /operations/board/stream     # SSE snapshot feed (same query params)
 
 GET    /ax-flows
 GET    /ax-flows/:id/runs           # register BEFORE /ax-flows/:id
@@ -411,6 +417,13 @@ On Ben's machine, **8787 = Kilroy**. AxPlane API defaults to **8797**.
 
 **Symptom:** Submit does nothing, banner red or stuck.  
 **Fix:** Restart web after `.env.local` change; confirm `8797/health` returns `"service":"axplane-api"`.
+
+### Operations board API needs restart in dev
+
+Dev API runs via `scripts/supervise-service.mjs` → plain `tsx src/server.ts` (**no file watch**). New routes (e.g. `GET /operations/board`) return 404 until the API child is restarted.
+
+**Fix:** `pnpm dev` (full stack) or `pkill -f "ax-plane/apps/api.*server.ts"` and wait ~2s for supervisor respawn.  
+**Doc:** `docs/operations-board.md`
 
 ### Web port 3000 vs 3010
 

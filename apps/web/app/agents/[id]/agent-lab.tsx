@@ -3,9 +3,14 @@
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import type { LabEvalComparison } from '@axplane/eval/lab-comparison';
+import { buildCaseComparisonRows } from '@axplane/eval/lab-comparison';
 import { api } from '@/lib/api';
+import type { EvalRun } from '@/lib/eval-types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { MetricComparisonChart } from '@/components/eval/metric-comparison-chart';
+import { PerCaseDeltaTable } from '@/components/eval/per-case-delta-table';
 
 type EvalSuite = {
   id: string;
@@ -43,36 +48,10 @@ type AgentCandidate = {
   baselineScore: number | null;
   candidateScore: number | null;
   metricsJson: {
-    comparison?: EvalComparison;
+    comparison?: LabEvalComparison;
   } | null;
   promotedAt: string | null;
   createdAt: string;
-};
-
-type EvalComparison = {
-  baseline: {
-    averageScore: number;
-    avgTurns: number;
-    toolMistakes: number;
-    costUsd: number;
-    passedCases: number;
-    caseCount: number;
-  };
-  candidate: {
-    averageScore: number;
-    avgTurns: number;
-    toolMistakes: number;
-    costUsd: number;
-    passedCases: number;
-    caseCount: number;
-  };
-  delta: {
-    score: number;
-    avgTurns: number;
-    toolMistakes: number;
-    costUsd: number;
-    passedCases: number;
-  };
 };
 
 type AgentDetail = { id: string; name: string };
@@ -90,7 +69,7 @@ export function AgentLab({ agentId }: { agentId: string }) {
     baselineEvalRunId: string;
     candidateEvalRunId: string;
     candidateId: string;
-    comparison: EvalComparison;
+    comparison: LabEvalComparison;
   } | null>(null);
 
   const agent = useQuery({
@@ -118,6 +97,65 @@ export function AgentLab({ agentId }: { agentId: string }) {
   const comparison = lastOptimization?.comparison
     ?? selectedCandidate?.metricsJson?.comparison
     ?? null;
+
+  const comparisonEvalRunIds = useMemo(() => {
+    if (lastOptimization) {
+      return {
+        baseline: lastOptimization.baselineEvalRunId,
+        candidate: lastOptimization.candidateEvalRunId,
+      };
+    }
+    if (selectedCandidateId) {
+      const optRun = optimizationRuns.data?.find((row) => row.candidateId === selectedCandidateId);
+      if (optRun?.baselineEvalRunId && optRun.candidateEvalRunId) {
+        return {
+          baseline: optRun.baselineEvalRunId,
+          candidate: optRun.candidateEvalRunId,
+        };
+      }
+    }
+    return null;
+  }, [lastOptimization, optimizationRuns.data, selectedCandidateId]);
+
+  const baselineEvalRun = useQuery({
+    queryKey: ['eval-run', comparisonEvalRunIds?.baseline],
+    queryFn: () => api<EvalRun>(`/eval/runs/${comparisonEvalRunIds!.baseline}`),
+    enabled: Boolean(comparisonEvalRunIds?.baseline),
+  });
+  const candidateEvalRun = useQuery({
+    queryKey: ['eval-run', comparisonEvalRunIds?.candidate],
+    queryFn: () => api<EvalRun>(`/eval/runs/${comparisonEvalRunIds!.candidate}`),
+    enabled: Boolean(comparisonEvalRunIds?.candidate),
+  });
+
+  const caseComparisonRows = useMemo(() => {
+    const baselineResults = baselineEvalRun.data?.results ?? [];
+    const candidateResults = candidateEvalRun.data?.results ?? [];
+    if (baselineResults.length === 0 && candidateResults.length === 0) return [];
+    return buildCaseComparisonRows(
+      baselineResults.map((row) => ({
+        caseId: row.caseId,
+        caseName: row.caseName,
+        status: row.status,
+        score: row.score,
+      })),
+      candidateResults.map((row) => ({
+        caseId: row.caseId,
+        caseName: row.caseName,
+        status: row.status,
+        score: row.score,
+      })),
+    );
+  }, [baselineEvalRun.data?.results, candidateEvalRun.data?.results]);
+
+  const baselineRunsByCaseId = useMemo(
+    () => new Map((baselineEvalRun.data?.results ?? []).map((row) => [row.caseId, row.runId])),
+    [baselineEvalRun.data?.results],
+  );
+  const candidateRunsByCaseId = useMemo(
+    () => new Map((candidateEvalRun.data?.results ?? []).map((row) => [row.caseId, row.runId])),
+    [candidateEvalRun.data?.results],
+  );
 
   const seedSuite = useMutation({
     mutationFn: () => api<EvalSuite>(`/agents/${agentId}/lab/suites/seed-smoke`, { method: 'POST' }),
@@ -148,16 +186,16 @@ export function AgentLab({ agentId }: { agentId: string }) {
       baselineEvalRunId: string;
       candidateEvalRunId: string;
       candidateId: string;
-      comparison: EvalComparison;
+      comparison: LabEvalComparison;
       baselineSummary: EvalRunSummary;
       candidateSummary: EvalRunSummary;
     }>(`/agents/${agentId}/lab/optimize`, {
       method: 'POST',
-        body: JSON.stringify({
-          suiteId: activeSuiteId,
-          mode: optimizerType === 'ax-native' ? 'real' : mode,
-          optimizerType,
-        }),
+      body: JSON.stringify({
+        suiteId: activeSuiteId,
+        mode: optimizerType === 'ax-native' ? 'real' : mode,
+        optimizerType,
+      }),
     }),
     onSuccess: async (result) => {
       setLastOptimization(result);
@@ -169,6 +207,8 @@ export function AgentLab({ agentId }: { agentId: string }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['lab-optimization-runs', agentId] }),
         queryClient.invalidateQueries({ queryKey: ['lab-candidates', agentId] }),
+        queryClient.invalidateQueries({ queryKey: ['eval-run', result.baselineEvalRunId] }),
+        queryClient.invalidateQueries({ queryKey: ['eval-run', result.candidateEvalRunId] }),
       ]);
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Optimization failed'),
@@ -275,35 +315,34 @@ export function AgentLab({ agentId }: { agentId: string }) {
       </Card>
 
       {comparison ? (
-        <Card className="space-y-4 p-4">
-          <h2 className="text-lg font-semibold">Comparison</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-md border border-border p-4">
-              <h3 className="mb-2 text-sm font-semibold text-foreground">Baseline</h3>
-              <dl className="space-y-1 text-sm text-muted-foreground">
-                <div>Score: <span className="text-foreground">{comparison.baseline.averageScore}%</span></div>
-                <div>Passed: <span className="text-foreground">{comparison.baseline.passedCases}/{comparison.baseline.caseCount}</span></div>
-                <div>Avg turns: <span className="text-foreground">{comparison.baseline.avgTurns}</span></div>
-                <div>Tool mistakes: <span className="text-foreground">{comparison.baseline.toolMistakes}</span></div>
-                <div>Cost/run: <span className="text-foreground">${comparison.baseline.costUsd.toFixed(4)}</span></div>
-              </dl>
+        <Card className="space-y-6 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Comparison</h2>
+            <p className="text-sm text-muted-foreground">
+              Score {comparison.delta.score >= 0 ? '+' : ''}{comparison.delta.score}% ·
+              passed cases {comparison.delta.passedCases >= 0 ? '+' : ''}{comparison.delta.passedCases} ·
+              turns {comparison.delta.avgTurns >= 0 ? '+' : ''}{comparison.delta.avgTurns} ·
+              mistakes {comparison.delta.toolMistakes >= 0 ? '+' : ''}{comparison.delta.toolMistakes}
+            </p>
+          </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-foreground">Metrics</h3>
+              <MetricComparisonChart comparison={comparison} />
             </div>
-            <div className="rounded-md border border-emerald-900/40 bg-emerald-950/10 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-emerald-300">Candidate</h3>
-              <dl className="space-y-1 text-sm text-muted-foreground">
-                <div>Score: <span className="text-foreground">{comparison.candidate.averageScore}%</span></div>
-                <div>Passed: <span className="text-foreground">{comparison.candidate.passedCases}/{comparison.candidate.caseCount}</span></div>
-                <div>Avg turns: <span className="text-foreground">{comparison.candidate.avgTurns}</span></div>
-                <div>Tool mistakes: <span className="text-foreground">{comparison.candidate.toolMistakes}</span></div>
-                <div>Cost/run: <span className="text-foreground">${comparison.candidate.costUsd.toFixed(4)}</span></div>
-              </dl>
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-foreground">Per-case delta</h3>
+              {baselineEvalRun.isLoading || candidateEvalRun.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading case results…</p>
+              ) : (
+                <PerCaseDeltaTable
+                  rows={caseComparisonRows}
+                  baselineRunsByCaseId={baselineRunsByCaseId}
+                  candidateRunsByCaseId={candidateRunsByCaseId}
+                />
+              )}
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Delta: score {comparison.delta.score >= 0 ? '+' : ''}{comparison.delta.score}% ·
-            turns {comparison.delta.avgTurns >= 0 ? '+' : ''}{comparison.delta.avgTurns} ·
-            mistakes {comparison.delta.toolMistakes >= 0 ? '+' : ''}{comparison.delta.toolMistakes}
-          </p>
         </Card>
       ) : null}
 

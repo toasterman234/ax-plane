@@ -14,6 +14,7 @@
     "paths": {
       "@axplane/db": ["packages/db/src/index.ts"],
       "@axplane/events": ["packages/events/src/index.ts"],
+      "@axplane/flow-trace-bus": ["packages/flow-trace-bus/src/index.ts"],
       "@axplane/policy": ["packages/policy/src/index.ts"],
       "@axplane/router": ["packages/router/src/index.ts"],
       "@axplane/agents": ["packages/agents/src/index.ts"],

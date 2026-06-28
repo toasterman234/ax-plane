@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import type { ControlEventType, RunStatus } from '@axplane/events';
 import type { EvalCriterion } from '@axplane/eval';
+import { buildEvalMatrix } from '@axplane/eval';
 import { GRAPH_ORCHESTRATOR_AGENT_ID, parseWorkflowSteps } from '@axplane/graph';
 import { AX_FLOW_ORCHESTRATOR_AGENT_ID, AX_DISPATCHER_ORCHESTRATOR_AGENT_ID } from '@axplane/flow-canvas';
 import type { MemoryEntry } from '@axplane/memory';
@@ -726,11 +727,77 @@ export function createRepositories(db: Database) {
       return row;
     },
 
-    async listEvalRuns(suiteId?: string) {
-      const rows = suiteId
-        ? await db.select().from(evalRuns).where(eq(evalRuns.suiteId, suiteId)).orderBy(desc(evalRuns.createdAt))
-        : await db.select().from(evalRuns).orderBy(desc(evalRuns.createdAt));
-      return rows;
+    async listEvalRuns(filter?: { suiteId?: string; agentId?: string; limit?: number }) {
+      const conditions = [];
+      if (filter?.suiteId) conditions.push(eq(evalRuns.suiteId, filter.suiteId));
+      if (filter?.agentId) conditions.push(eq(evalRuns.agentId, filter.agentId));
+      const base = db.select().from(evalRuns).orderBy(desc(evalRuns.createdAt));
+      const query = conditions.length ? base.where(and(...conditions)) : base;
+      if (filter?.limit) return query.limit(filter.limit);
+      return query;
+    },
+
+    async getEvalSuiteMatrix(
+      suiteId: string,
+      opts: { runIds?: string[]; limit?: number; agentId?: string } = {},
+    ) {
+      const suite = await this.getEvalSuite(suiteId);
+      if (!suite) return null;
+
+      let rows;
+      if (opts.runIds?.length) {
+        rows = await db
+          .select()
+          .from(evalRuns)
+          .where(and(eq(evalRuns.suiteId, suiteId), inArray(evalRuns.id, opts.runIds)))
+          .orderBy(asc(evalRuns.createdAt));
+      } else {
+        // Eval runs use status "failed" when any case fails scoring — still finished runs.
+        const conditions = [eq(evalRuns.suiteId, suiteId), isNotNull(evalRuns.completedAt)];
+        if (opts.agentId) conditions.push(eq(evalRuns.agentId, opts.agentId));
+        rows = await db
+          .select()
+          .from(evalRuns)
+          .where(and(...conditions))
+          .orderBy(desc(evalRuns.createdAt))
+          .limit(opts.limit ?? 8);
+        rows = rows.reverse();
+      }
+
+      if (rows.length === 0) {
+        return buildEvalMatrix({ suiteId, cases: suite.cases, runs: [], results: [] });
+      }
+
+      const runIds = rows.map((row) => row.id);
+      const resultRows = await db
+        .select({
+          evalRunId: evalCaseResults.evalRunId,
+          caseId: evalCaseResults.caseId,
+          status: evalCaseResults.status,
+          score: evalCaseResults.score,
+          runId: evalCaseResults.runId,
+        })
+        .from(evalCaseResults)
+        .where(inArray(evalCaseResults.evalRunId, runIds));
+
+      return buildEvalMatrix({
+        suiteId,
+        cases: suite.cases.map((row) => ({ id: row.id, name: row.name, sortOrder: row.sortOrder })),
+        runs: rows.map((row) => ({
+          id: row.id,
+          createdAt: row.createdAt,
+          agentId: row.agentId,
+          agentVersionId: row.agentVersionId,
+          status: row.status,
+          mode: row.mode,
+          summaryJson: row.summaryJson as {
+            averageScore?: number;
+            passedCases?: number;
+            caseCount?: number;
+          } | null,
+        })),
+        results: resultRows,
+      });
     },
 
     async getEvalRun(evalRunId: string) {
@@ -1023,6 +1090,16 @@ export function createRepositories(db: Database) {
         .from(optimizationRuns)
         .where(eq(optimizationRuns.agentId, agentId))
         .orderBy(desc(optimizationRuns.createdAt));
+    },
+
+    async listOptimizationRunsFiltered(filter?: { agentId?: string; suiteId?: string; limit?: number }) {
+      const conditions = [];
+      if (filter?.agentId) conditions.push(eq(optimizationRuns.agentId, filter.agentId));
+      if (filter?.suiteId) conditions.push(eq(optimizationRuns.suiteId, filter.suiteId));
+      const base = db.select().from(optimizationRuns).orderBy(desc(optimizationRuns.createdAt));
+      const query = conditions.length ? base.where(and(...conditions)) : base;
+      if (filter?.limit) return query.limit(filter.limit);
+      return query;
     },
 
     async createAgentCandidate(input: {

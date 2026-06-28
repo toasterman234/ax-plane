@@ -23,6 +23,10 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
   <img src="docs/screenshots/home.png" alt="Ax Plane mission control home — system status, needs attention, setup checklist, and hub navigation" width="900" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/operations-board.png" alt="Operations board — kanban with KPI strip, live SSE updates, drag-to-start, and inspect panel" width="900" />
+</p>
+
 | Agents registry | Run detail |
 | :---: | :---: |
 | <img src="docs/screenshots/agents.png" alt="Agent registry and config" width="440" /> | <img src="docs/screenshots/run-detail.png" alt="Run detail with output and tool calls" width="440" /> |
@@ -39,7 +43,7 @@ MIT licensed · runs on your machine · mock mode works with **no API key**
 | :---: | :---: |
 | <img src="docs/screenshots/dispatcher.png" alt="AX Dispatcher team orchestrator canvas" width="440" /> | <img src="docs/screenshots/agents-eval.png" alt="Eval suites, runs, and case results" width="440" /> |
 
-More captures: [`docs/screenshots/`](docs/screenshots/) (requests inbox, runs list, agent editor, Forge).
+More captures: [`docs/screenshots/`](docs/screenshots/) (operations board, requests inbox, runs list, agent editor, Forge).
 
 Regenerate locally while the dev stack is up on `:3010`:
 
@@ -102,7 +106,7 @@ The sidebar has five top-level areas. Each hub has sub-tabs for related features
 | **Home** | `/` | Mission control — health, attention queue, setup checklist, hub map |
 | **Agents** | `/agents/*` | Agent registry, tools, memory, eval, forge, per-agent editor & lab |
 | **Workflows** | `/workflows/*` | Graph child-run pipelines, Ax `flow()` proxy, team dispatcher proxy |
-| **Operations** | `/operations/*` | Request inbox, run history, approval queue |
+| **Operations** | `/operations/*` | **Board** (kanban), request inbox, run history, approval queue |
 | **Settings** | `/settings/*` | Theme lab (dashboard appearance) |
 
 Legacy URLs (`/requests`, `/runs`, `/tools`, etc.) redirect into the Operations and Agents hubs.
@@ -321,6 +325,33 @@ Complex queries can run for minutes on ax-server. Use short smoke queries (`"hey
 
 The runtime inbox — where work enters and gets executed.
 
+### Board (`/operations/board`)
+
+Kanban (and list) view joining **requests**, **latest top-level run**, and **pending approvals** — no separate board store; columns are derived from live Postgres state.
+
+| Column | Meaning |
+|--------|---------|
+| **Inbox** | Request not yet routed (`status: new`) |
+| **Ready** | Routed, no run started |
+| **Queued** / **Running** / **Needs approval** / **Done** / **Failed** | Latest run lifecycle + approval overlay |
+
+| Feature | Description |
+|---------|-------------|
+| **Live updates (SSE)** | `GET /operations/board/stream` — snapshot events when board state changes (~1s server poll + fingerprint dedupe) |
+| **KPI strip** | Total · Ready · Active · Approvals · Done · Failed |
+| **Kanban ⇄ List** | Toggle with persisted view preference |
+| **Column tints** | Kilroy-style column backgrounds; hide-empty-columns toggle |
+| **Drag-to-start** | Drag Inbox/Ready cards onto Queued or Running → `POST /runs` |
+| **Inspect panel** | Click card → slide-over with full request body, routing, live run SSE, pending approvals |
+| **Filters** | Agent, run kind (`agent` / `graph` / `axflow` / `axdispatcher`), needs-attention-only |
+| **New request** | Inline composer (submit without auto-start) |
+
+Operator doc: [`docs/operations-board.md`](docs/operations-board.md)
+
+List views (**Requests**, **Runs**, **Approvals**) remain for power-user drill-down.
+
+---
+
 ### Requests (`/operations/requests`)
 
 | Feature | Description |
@@ -492,6 +523,7 @@ Roadmaps: [`docs/workflows-roadmap.md`](docs/workflows-roadmap.md) · [`docs/age
 | Doc | Contents |
 |-----|----------|
 | [`HANDOFF.md`](HANDOFF.md) | Operator brief, gotchas, API reference |
+| [`docs/operations-board.md`](docs/operations-board.md) | Operations kanban — columns, SSE, drag-to-start, inspect panel |
 | [`docs/ax-surface-map.md`](docs/ax-surface-map.md) | axllm.dev vs Ax Plane capability grid |
 | [`docs/flow-canvas.md`](docs/flow-canvas.md) | Canvas package + axflow/dispatcher proxy |
 | [`docs/workflows.md`](docs/workflows.md) | Graph child-run workflows |
