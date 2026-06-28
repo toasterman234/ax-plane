@@ -146,6 +146,42 @@ export type BoardQuery = {
   attention?: boolean;
 };
 
+export function parseBoardQuery(params: {
+  agentId?: string;
+  runKind?: string;
+  attention?: string;
+}): BoardQuery {
+  const agentId = params.agentId || undefined;
+  const runKindRaw = params.runKind;
+  const runKind = runKindRaw === 'graph' || runKindRaw === 'axflow' || runKindRaw === 'axdispatcher' || runKindRaw === 'agent'
+    ? runKindRaw
+    : undefined;
+  const attention = params.attention === 'true';
+  return { agentId, runKind, attention };
+}
+
+/** Compact change token — skips identical SSE payloads between polls. */
+export function boardFingerprint(board: OperationsBoardResponse): string {
+  const parts: Array<string | number> = [
+    board.counts.total,
+    board.counts.activeRuns,
+    board.counts.pendingApprovals,
+  ];
+  for (const column of board.columns) {
+    parts.push(column.id, column.cards.length);
+    for (const card of column.cards) {
+      parts.push(
+        card.requestId,
+        card.latestRun?.id ?? '',
+        card.latestRun?.status ?? '',
+        card.pendingApprovalCount,
+        card.updatedAt,
+      );
+    }
+  }
+  return parts.join('|');
+}
+
 export async function buildOperationsBoard(repo: Repo, query: BoardQuery = {}): Promise<OperationsBoardResponse> {
   const [requestRows, runRows, approvalRows] = await Promise.all([
     repo.listRequests(),

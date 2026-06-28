@@ -80,7 +80,7 @@ Single-agent runs still use `@axplane/ax-adapter` (`native` or `rlm`) — not ax
 | **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
 | **Dispatcher (governed)** | `runKind: axdispatcher`, worker → `/dispatcher` SSE, `dispatcher.*` events, `/dispatcher` UI + live run | ✅ |
 | **Agent Forge** | `@axplane/forge`, `/agents/forge` UI, `/forge/sessions/*` API — intake → heuristic/LLM scaffold → commit → optimize | ✅ |
-| **Operations board** | `GET /operations/board`, `/operations/board` kanban + list views, KPI strip, inspect panel, column tints, hide-empty toggle, dnd-kit drag-to-start, Operations hub Board tab | ✅ |
+| **Operations board** | `GET /operations/board`, `GET /operations/board/stream` (SSE), `/operations/board` kanban + list, KPI strip, inspect panel, dnd-kit drag-to-start | ✅ |
 
 ### Agent Lab
 
@@ -321,6 +321,7 @@ web → API (optional live SSE proxy) → worker → streamAxFlowRun / streamAxD
 GET    /health                      # worker heartbeat + axEngine.reachable + dispatcherAvailable
 GET    /dashboard/summary           # Home mission control — health + counts + setup + attention + recent runs
 GET    /operations/board            # Kanban projection — requests + latest run + approvals (?agentId &runKind &attention)
+GET    /operations/board/stream     # SSE snapshot feed (same query params)
 
 GET    /ax-flows
 GET    /ax-flows/:id/runs           # register BEFORE /ax-flows/:id

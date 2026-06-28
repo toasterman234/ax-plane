@@ -11,7 +11,8 @@ import { BoardKanban } from './board-kanban';
 import { BoardKpiStrip } from './board-kpi-strip';
 import { BoardListView } from './board-list';
 import { BoardInspectPanel } from './board-inspect-panel';
-import { flattenBoardCards, type BoardCard, type OperationsBoardResponse } from './board-types';
+import { flattenBoardCards, type BoardCard } from './board-types';
+import { useOperationsBoardStream } from './use-operations-board-stream';
 
 type Agent = { id: string; name: string; enabled: boolean };
 type Run = { id: string; requestId: string; agentId: string; status: string };
@@ -62,11 +63,7 @@ export default function OperationsBoardPage() {
     return qs ? `/operations/board?${qs}` : '/operations/board';
   }, [agentFilter, runKindFilter, attentionOnly]);
 
-  const board = useQuery({
-    queryKey: ['operations-board', queryPath],
-    queryFn: () => api<OperationsBoardResponse>(queryPath),
-    refetchInterval: 3000,
-  });
+  const board = useOperationsBoardStream(queryPath);
 
   const agents = useQuery({
     queryKey: ['agents'],
@@ -81,7 +78,6 @@ export default function OperationsBoardPage() {
   const invalidateBoard = () => {
     void queryClient.invalidateQueries({ queryKey: ['operations-board'] });
     void queryClient.invalidateQueries({ queryKey: ['approvals', 'pending-count'] });
-    void queryClient.invalidateQueries({ queryKey: ['operations-board-badge'] });
   };
 
   const createRequest = useMutation({

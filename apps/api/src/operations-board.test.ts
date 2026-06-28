@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildOperationsBoard, resolveBoardColumn } from './operations-board';
+import { boardFingerprint, buildOperationsBoard, parseBoardQuery, resolveBoardColumn } from './operations-board';
 
 describe('resolveBoardColumn', () => {
   it('places unrouted requests in inbox', () => {
@@ -44,6 +44,52 @@ describe('resolveBoardColumn', () => {
       latestRun: { status: 'needs_approval' },
       pendingApprovalCount: 0,
     })).toBe('needs_approval');
+  });
+});
+
+describe('boardFingerprint', () => {
+  it('changes when card moves columns', () => {
+    const base = {
+      columns: [
+        { id: 'inbox' as const, label: 'Inbox', cards: [{ requestId: 'r1', updatedAt: 't1', latestRun: null, pendingApprovalCount: 0, body: '', agentId: 'a', routeDecision: null, createdAt: 't0' }] },
+        { id: 'ready' as const, label: 'Ready', cards: [] },
+        { id: 'queued' as const, label: 'Queued', cards: [] },
+        { id: 'running' as const, label: 'Running', cards: [] },
+        { id: 'needs_approval' as const, label: 'Needs approval', cards: [] },
+        { id: 'done' as const, label: 'Done', cards: [] },
+        { id: 'failed' as const, label: 'Failed', cards: [] },
+      ],
+      counts: { total: 1, activeRuns: 0, pendingApprovals: 0 },
+      generatedAt: '2026-06-27T12:00:00Z',
+    };
+    const moved = {
+      ...base,
+      columns: base.columns.map((column) => (
+        column.id === 'inbox'
+          ? { ...column, cards: [] }
+          : column.id === 'running'
+            ? { ...column, cards: [{ ...base.columns[0].cards[0], latestRun: { id: 'run1', status: 'running' as const, runKind: 'agent' as const, agentId: 'a', createdAt: 't2', childRunCount: 0 } }] }
+            : column
+      )),
+      counts: { total: 1, activeRuns: 1, pendingApprovals: 0 },
+    };
+
+    expect(boardFingerprint(base)).not.toBe(boardFingerprint(moved));
+  });
+});
+
+describe('parseBoardQuery', () => {
+  it('parses filters from query params', () => {
+    expect(parseBoardQuery({ agentId: 'agent_a', runKind: 'graph', attention: 'true' })).toEqual({
+      agentId: 'agent_a',
+      runKind: 'graph',
+      attention: true,
+    });
+    expect(parseBoardQuery({ runKind: 'invalid' })).toEqual({
+      agentId: undefined,
+      runKind: undefined,
+      attention: false,
+    });
   });
 });
 

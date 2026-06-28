@@ -1,3 +1,4 @@
+import './env.js';
 import { serve } from '@hono/node-server';
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
@@ -39,14 +40,19 @@ import {
   CLASSIFY_ACT_STAGING_WORKFLOW,
   CreateGraphWorkflowSchema,
 } from '@axplane/graph';
-import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY } from '@axplane/flow-canvas';
+import { fetchAllFlowEntries, fetchFlowEntryById, resolveAxEngineConfig, fetchEngineRuns, fetchEngineRun, resolveFlowServerBase, checkDispatcherReachable, DISPATCHER_FLOW_ENTRY, fetchDispatcherPrompts, saveDispatcherPrompts } from '@axplane/flow-canvas';
 import type { HostToolDefinition } from '@axplane/host-tools';
 import { registerForgeRoutes, handleForgeRouteError } from './forge-routes';
 import { registerDispatcherEvalRoutes } from './dispatcher-eval-routes.js';
+import { registerDispatcherGuardRoutes } from './dispatcher-guard-routes.js';
+import { recordChatDispatcherGuards } from './dispatcher-guard-stream.js';
 import { registerExperimentsRoutes } from './experiments-routes.js';
+import { registerFlowTraceRoutes } from './flow-trace-routes.js';
+import { registerOperationsBoardRoutes } from './operations-board-routes.js';
+import { createFlowTraceTap } from './flow-trace-emit.js';
 import { buildHealthPayload } from './health-payload';
 import { buildDashboardSummary } from './dashboard-summary';
-import { buildOperationsBoard, type RunKind } from './operations-board';
+import { fetchDispatcherTrace, isLangfuseConfigured, resolveLangfuseConfig, LangfuseTracePendingError } from '@axplane/langfuse';
 
 const CreateHttpToolSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{1,62}$/, 'Tool name must be lowercase slug (e.g. slack_notify)'),
@@ -124,15 +130,7 @@ app.get('/dashboard/summary', async (c) => {
   return c.json(await buildDashboardSummary(repo, health));
 });
 
-app.get('/operations/board', async (c) => {
-  const agentId = c.req.query('agentId') || undefined;
-  const runKindRaw = c.req.query('runKind');
-  const runKind = runKindRaw === 'graph' || runKindRaw === 'axflow' || runKindRaw === 'axdispatcher' || runKindRaw === 'agent'
-    ? (runKindRaw as RunKind)
-    : undefined;
-  const attention = c.req.query('attention') === 'true';
-  return c.json(await buildOperationsBoard(repo, { agentId, runKind, attention }));
-});
+registerOperationsBoardRoutes(app, repo);
 
 app.get('/tools', async (c) => c.json(await listAllToolDescriptors()));
 
@@ -433,6 +431,37 @@ app.get('/ax-dispatcher', async (c) => {
   });
 });
 
+const DispatcherPromptUpdatesSchema = z.object({
+  updates: z.record(z.string()),
+});
+
+app.get('/ax-engine/dispatcher/prompts', async (c) => {
+  const available = await checkDispatcherReachable();
+  if (!available) {
+    return c.json({ error: 'ax-server /dispatcher unavailable (is :8810 up?)' }, 503);
+  }
+  try {
+    const prompts = await fetchDispatcherPrompts();
+    return c.json({ prompts });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 502);
+  }
+});
+
+app.post('/ax-engine/dispatcher/prompts', async (c) => {
+  const available = await checkDispatcherReachable();
+  if (!available) {
+    return c.json({ error: 'ax-server /dispatcher unavailable (is :8810 up?)' }, 503);
+  }
+  const body = DispatcherPromptUpdatesSchema.parse(await c.req.json());
+  try {
+    const prompts = await saveDispatcherPrompts(body.updates);
+    return c.json({ ok: true, prompts });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 502);
+  }
+});
+
 const AxEngineDispatcherRunSchema = z.object({
   query: z.string().min(1),
 });
@@ -449,12 +478,46 @@ app.post('/ax-engine/dispatcher-run', async (c) => {
     const text = await upstream.text().catch(() => '');
     return c.json({ error: text || `Dispatcher run failed (${upstream.status})` }, 502);
   }
-  return new Response(upstream.body, {
+  const guarded = await recordChatDispatcherGuards({
+    query: body.query,
+    upstream: upstream.body,
+  });
+  // Observatory Slice A: tap the guarded stream to publish FlowTraceEvents
+  // onto the in-process bus (passthrough — chat bytes are unchanged).
+  const traced = createFlowTraceTap(guarded);
+  return new Response(traced, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
     },
+  });
+});
+
+app.get('/langfuse/traces/:traceId', async (c) => {
+  const cfg = resolveLangfuseConfig();
+  if (!cfg) {
+    return c.json({ error: 'Langfuse not configured (set LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)' }, 503);
+  }
+  const traceId = c.req.param('traceId').trim();
+  if (!traceId) return c.json({ error: 'traceId required' }, 400);
+  try {
+    const detail = await fetchDispatcherTrace(traceId, cfg);
+    return c.json(detail);
+  } catch (err) {
+    if (err instanceof LangfuseTracePendingError) {
+      return c.json({ pending: true, id: traceId }, 404);
+    }
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 502);
+  }
+});
+
+app.get('/langfuse/status', async (c) => {
+  const configured = isLangfuseConfigured();
+  return c.json({
+    configured,
+    host: configured ? (resolveLangfuseConfig()?.host ?? null) : null,
+    projectId: configured ? process.env.LANGFUSE_PROJECT_ID?.trim() || null : null,
   });
 });
 
@@ -550,6 +613,8 @@ app.get('/workflows/:id', async (c) => {
 });
 
 app.get('/agents', async (c) => c.json(await repo.listAgents()));
+
+app.get('/agents/summary', async (c) => c.json(await repo.listAgentsSummary()));
 
 async function seedDefaultAgentHandler(c: Context) {
   const config = getDefaultAgentConfig();
@@ -816,7 +881,9 @@ registerForgeRoutes(app, {
 });
 
 registerDispatcherEvalRoutes(app);
+registerDispatcherGuardRoutes(app);
 registerExperimentsRoutes(app, repo);
+registerFlowTraceRoutes(app);
 
 app.get('/requests', async (c) => c.json(await repo.listRequests()));
 

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { HubShell } from '@/components/hub-shell';
 import { api } from '@/lib/api';
+import { useOperationsBoardStream } from '@/app/operations/board/use-operations-board-stream';
 
 const TABS = [
   {
@@ -45,10 +46,6 @@ function tabDescription(pathname: string): string {
 
 type ApprovalRow = { status: string };
 
-type BoardBadgeCounts = {
-  counts: { activeRuns: number; pendingApprovals: number };
-};
-
 export function OperationsHub({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
@@ -58,11 +55,7 @@ export function OperationsHub({ children }: { children: ReactNode }) {
     refetchInterval: 5000,
   });
 
-  const boardCounts = useQuery({
-    queryKey: ['operations-board-badge'],
-    queryFn: () => api<BoardBadgeCounts>('/operations/board'),
-    refetchInterval: 5000,
-  });
+  const boardCounts = useOperationsBoardStream('/operations/board');
 
   const pendingCount = pendingApprovals.data?.length ?? 0;
   const boardBadge = (boardCounts.data?.counts.activeRuns ?? 0) + (boardCounts.data?.counts.pendingApprovals ?? 0);

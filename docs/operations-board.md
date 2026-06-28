@@ -15,7 +15,7 @@ GET /operations/board
   → JSON { columns, counts, generatedAt }
 ```
 
-The web app polls every **3s** (TanStack Query). Run detail still uses SSE on `/runs/:id/stream`.
+The web app subscribes via **`GET /operations/board/stream`** (SSE). The server polls Postgres every **1s**, emits a `snapshot` event when the board fingerprint changes, and sends `ping` heartbeats otherwise. Run detail still uses SSE on `/runs/:id/stream`.
 
 ## Columns
 
@@ -36,6 +36,17 @@ The web app polls every **3s** (TanStack Query). Run detail still uses SSE on `/
 | `agentId` | Filter cards by request agent or run agent |
 | `runKind` | `agent` \| `graph` \| `axflow` \| `axdispatcher` |
 | `attention=true` | Inbox, Ready, Running, Needs approval, Failed only |
+
+## Live updates (SSE)
+
+```txt
+GET /operations/board/stream[?agentId &runKind &attention]
+  → poll buildOperationsBoard every 1s
+  → event: snapshot  (full board JSON when fingerprint changes)
+  → event: ping       (heartbeat when unchanged)
+```
+
+Web hook: `useOperationsBoardStream(queryPath)` — initial REST fetch + EventSource cache updates.
 
 ## UI actions
 
@@ -81,15 +92,15 @@ Six tiles above the toolbar: **Total**, **Ready** (Inbox + Ready), **Active** (r
 - **Drop targets:** Queued or Running columns → same as Start run
 - Other columns are read-only (position is server-projected)
 
-Components: `apps/web/app/operations/board/` (`page.tsx`, `board-kanban.tsx`, `board-list.tsx`, `board-kpi-strip.tsx`, `board-inspect-panel.tsx`, `board-card.tsx`, `board-types.ts`).
+Components: `apps/web/app/operations/board/` (`page.tsx`, `use-operations-board-stream.ts`, `board-kanban.tsx`, `board-list.tsx`, `board-kpi-strip.tsx`, `board-inspect-panel.tsx`, `board-card.tsx`, `board-types.ts`).
 
 ## Dev notes
 
 - The API dev process uses `tsx src/server.ts` **without watch** (`scripts/supervise-service.mjs`). After API changes, restart the stack or kill the API child so the supervisor respawns it.
 - Verify: `curl -s http://localhost:8797/operations/board | jq '.counts'`
+- SSE: `curl -N http://localhost:8797/operations/board/stream`
 
 ## Deferred (not v1)
 
 - Curated boards / domain stage columns (Option B — ben-agents3 ledger pattern)
-- SSE push instead of poll
 - Drag to Done/Failed (no backing API)
