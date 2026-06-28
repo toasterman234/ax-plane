@@ -46,6 +46,7 @@ import { registerDispatcherEvalRoutes } from './dispatcher-eval-routes.js';
 import { registerExperimentsRoutes } from './experiments-routes.js';
 import { buildHealthPayload } from './health-payload';
 import { buildDashboardSummary } from './dashboard-summary';
+import { buildOperationsBoard, type RunKind } from './operations-board';
 
 const CreateHttpToolSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{1,62}$/, 'Tool name must be lowercase slug (e.g. slack_notify)'),
@@ -121,6 +122,16 @@ app.get('/health', async (c) => c.json(await buildHealthPayload()));
 app.get('/dashboard/summary', async (c) => {
   const health = await buildHealthPayload();
   return c.json(await buildDashboardSummary(repo, health));
+});
+
+app.get('/operations/board', async (c) => {
+  const agentId = c.req.query('agentId') || undefined;
+  const runKindRaw = c.req.query('runKind');
+  const runKind = runKindRaw === 'graph' || runKindRaw === 'axflow' || runKindRaw === 'axdispatcher' || runKindRaw === 'agent'
+    ? (runKindRaw as RunKind)
+    : undefined;
+  const attention = c.req.query('attention') === 'true';
+  return c.json(await buildOperationsBoard(repo, { agentId, runKind, attention }));
 });
 
 app.get('/tools', async (c) => c.json(await listAllToolDescriptors()));

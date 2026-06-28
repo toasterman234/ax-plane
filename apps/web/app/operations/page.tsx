@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function OperationsIndexPage() {
-  redirect('/operations/requests');
+  redirect('/operations/board');
 }

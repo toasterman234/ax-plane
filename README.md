@@ -102,7 +102,7 @@ The sidebar has five top-level areas. Each hub has sub-tabs for related features
 | **Home** | `/` | Mission control — health, attention queue, setup checklist, hub map |
 | **Agents** | `/agents/*` | Agent registry, tools, memory, eval, forge, per-agent editor & lab |
 | **Workflows** | `/workflows/*` | Graph child-run pipelines, Ax `flow()` proxy, team dispatcher proxy |
-| **Operations** | `/operations/*` | Request inbox, run history, approval queue |
+| **Operations** | `/operations/*` | **Board** (kanban), request inbox, run history, approval queue |
 | **Settings** | `/settings/*` | Theme lab (dashboard appearance) |
 
 Legacy URLs (`/requests`, `/runs`, `/tools`, etc.) redirect into the Operations and Agents hubs.
@@ -320,6 +320,28 @@ Complex queries can run for minutes on ax-server. Use short smoke queries (`"hey
 ## Operations hub (`/operations`)
 
 The runtime inbox — where work enters and gets executed.
+
+### Board (`/operations/board`)
+
+Kanban view joining **requests**, **latest top-level run**, and **pending approvals** — no separate board store; columns are derived from live Postgres state.
+
+| Column | Meaning |
+|--------|---------|
+| **Inbox** | Request not yet routed (`status: new`) |
+| **Ready** | Routed, no run started |
+| **Queued** / **Running** / **Needs approval** / **Done** / **Failed** | Latest run lifecycle + approval overlay |
+
+| Feature | Description |
+|---------|-------------|
+| **Live refresh** | Polls `GET /operations/board` every 3s |
+| **Filters** | Agent, run kind (`agent` / `graph` / `axflow` / `axdispatcher`), needs-attention-only |
+| **Start run** | From Ready/Inbox cards → `POST /runs` (button or drag onto Queued/Running) |
+| **Open run** | Deep-link to run detail + SSE timeline |
+| **New request** | Inline composer (submit without auto-start) |
+
+List views (**Requests**, **Runs**, **Approvals**) remain for power-user drill-down.
+
+---
 
 ### Requests (`/operations/requests`)
 
