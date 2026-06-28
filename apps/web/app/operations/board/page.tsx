@@ -124,6 +124,21 @@ export default function OperationsBoardPage() {
     setSelected({ card, columnId, columnLabel: label });
   }
 
+  useEffect(() => {
+    if (!selected || !board.data) return;
+    for (const column of board.data.columns) {
+      const fresh = column.cards.find((card) => card.requestId === selected.card.requestId);
+      if (fresh) {
+        setSelected({
+          card: fresh,
+          columnId: column.id,
+          columnLabel: column.label,
+        });
+        return;
+      }
+    }
+  }, [board.data, selected?.card.requestId]);
+
   return (
     <div className="space-y-4">
       {board.data ? (

@@ -3,12 +3,14 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ExternalLink, Play, X } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useRunStream } from '@/lib/use-run-stream';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { deriveApprovals } from '@/app/runs/[id]/run-detail-derive';
 import type { BoardCard, RunKind } from './board-types';
 import { COLUMN_DOT } from './board-types';
 
@@ -34,30 +36,11 @@ type RequestDetail = {
   updatedAt: string;
 };
 
-type RunEvent = { seq: number; type: string; payloadJson: unknown; createdAt: string };
-
-type RunDetail = {
-  run: {
-    id: string;
-    status: string;
-    agentId: string;
-    runKind: RunKind;
-    workflowId?: string;
-    error?: string;
-    createdAt: string;
-    updatedAt: string;
-  };
-  events: RunEvent[];
-  children: { id: string; stepKey?: string; status: string }[];
-};
-
-type ApprovalRow = {
-  id: string;
-  runId: string;
-  toolName: string;
-  status: string;
-  createdAt: string;
-};
+function readWorkflowId(inputJson: unknown): string | undefined {
+  if (typeof inputJson !== 'object' || inputJson === null) return undefined;
+  const workflowId = (inputJson as Record<string, unknown>).workflowId;
+  return typeof workflowId === 'string' ? workflowId : undefined;
+}
 
 function formatWhen(iso: string) {
   try {
@@ -99,31 +82,23 @@ export function BoardInspectPanel({
   onStartRun: (requestId: string) => void;
   starting: boolean;
 }) {
-  const run = card.latestRun;
-  const canStart = !run && (columnId === 'inbox' || columnId === 'ready');
+  const boardRun = card.latestRun;
+  const canStart = !boardRun && (columnId === 'inbox' || columnId === 'ready');
 
   const requestDetail = useQuery({
     queryKey: ['board-inspect-request', card.requestId],
     queryFn: () => api<RequestDetail>(`/requests/${card.requestId}`),
-    refetchInterval: 3000,
+    staleTime: Infinity,
   });
 
-  const runDetail = useQuery({
-    queryKey: ['board-inspect-run', run?.id],
-    queryFn: () => api<RunDetail>(`/runs/${run!.id}`),
-    enabled: Boolean(run?.id),
-    refetchInterval: 3000,
-  });
+  const { run, events, children, loading: runLoading, streamConnected } = useRunStream(boardRun?.id);
 
-  const pendingApprovals = useQuery({
-    queryKey: ['board-inspect-approvals', run?.id],
-    queryFn: async () => {
-      const rows = await api<ApprovalRow[]>('/approvals?status=pending');
-      return rows.filter((row) => row.runId === run!.id);
-    },
-    enabled: Boolean(run?.id) && card.pendingApprovalCount > 0,
-    refetchInterval: 3000,
-  });
+  const pendingApprovals = useMemo(
+    () => deriveApprovals(events).filter((row) => row.status === 'pending' || row.status === 'required'),
+    [events],
+  );
+
+  const pendingCount = pendingApprovals.length || card.pendingApprovalCount;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -142,7 +117,11 @@ export function BoardInspectPanel({
   }, []);
 
   const route = requestDetail.data?.routeDecisionJson ?? card.routeDecision;
-  const recentEvents = (runDetail.data?.events ?? []).slice(-6).reverse();
+  const recentEvents = events.slice(-6).reverse();
+  const runStatus = run?.status ?? boardRun?.status ?? '—';
+  const runKind = (run?.runKind ?? boardRun?.runKind ?? 'agent') as RunKind;
+  const workflowId = readWorkflowId(run?.inputJson) ?? boardRun?.workflowId;
+  const childRunCount = children.length || boardRun?.childRunCount || 0;
 
   const panel = (
     <>
@@ -167,6 +146,9 @@ export function BoardInspectPanel({
             <h2 id="board-inspect-title" className="font-mono text-sm font-semibold">
               {card.requestId}
             </h2>
+            {boardRun && streamConnected ? (
+              <p className="text-[10px] text-muted-foreground">Live run stream</p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -207,48 +189,48 @@ export function BoardInspectPanel({
             </section>
           ) : null}
 
-          {run ? (
+          {boardRun ? (
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest run</h3>
               <dl className="space-y-2">
                 <MetaRow label="Run ID">
-                  <span className="font-mono text-xs">{run.id}</span>
+                  <span className="font-mono text-xs">{boardRun.id}</span>
                 </MetaRow>
                 <MetaRow label="Status">
-                  <span className={statusClass(runDetail.data?.run.status ?? run.status)}>
-                    {runDetail.data?.run.status ?? run.status}
+                  <span className={statusClass(runStatus)}>
+                    {runLoading && !run ? 'Loading…' : runStatus}
                   </span>
                 </MetaRow>
-                <MetaRow label="Kind">{RUN_KIND_LABEL[run.runKind]}</MetaRow>
-                {run.workflowId ? <MetaRow label="Workflow">{run.workflowId}</MetaRow> : null}
-                {run.childRunCount > 0 ? (
-                  <MetaRow label="Steps">{run.childRunCount}</MetaRow>
+                <MetaRow label="Kind">{RUN_KIND_LABEL[runKind]}</MetaRow>
+                {workflowId ? <MetaRow label="Workflow">{workflowId}</MetaRow> : null}
+                {childRunCount > 0 ? (
+                  <MetaRow label="Steps">{childRunCount}</MetaRow>
                 ) : null}
-                {runDetail.data?.run.error ? (
+                {run?.error ? (
                   <MetaRow label="Error">
-                    <span className="text-red-400">{runDetail.data.run.error}</span>
+                    <span className="text-red-400">{run.error}</span>
                   </MetaRow>
                 ) : null}
               </dl>
             </section>
           ) : null}
 
-          {card.pendingApprovalCount > 0 ? (
+          {pendingCount > 0 ? (
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Pending approvals ({card.pendingApprovalCount})
+                Pending approvals ({pendingCount})
               </h3>
               <ul className="space-y-1.5">
-                {(pendingApprovals.data ?? []).map((approval) => (
+                {pendingApprovals.map((approval) => (
                   <li
-                    key={approval.id}
+                    key={`${approval.seq}-${approval.toolName}`}
                     className="rounded-md border border-amber-900/30 bg-amber-950/20 px-2.5 py-1.5 text-xs text-amber-100"
                   >
                     {approval.toolName}
                   </li>
                 ))}
-                {pendingApprovals.isLoading ? (
-                  <li className="text-xs text-muted-foreground">Loading approvals…</li>
+                {pendingApprovals.length === 0 && card.pendingApprovalCount > 0 ? (
+                  <li className="text-xs text-muted-foreground">Waiting for approval events…</li>
                 ) : null}
               </ul>
             </section>
@@ -260,7 +242,7 @@ export function BoardInspectPanel({
               <ul className="space-y-1.5">
                 {recentEvents.map((event) => (
                   <li
-                    key={event.seq}
+                    key={event.id ?? event.seq}
                     className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-xs"
                   >
                     <span className="font-mono text-muted-foreground">#{event.seq}</span>{' '}
@@ -282,16 +264,16 @@ export function BoardInspectPanel({
               <Play className="h-3.5 w-3.5" aria-hidden />
               {starting ? 'Starting…' : 'Start run'}
             </Button>
-          ) : run ? (
+          ) : boardRun ? (
             <Link
-              href={`/runs/${run.id}`}
+              href={`/runs/${boardRun.id}`}
               className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               Open run
             </Link>
           ) : null}
-          {card.pendingApprovalCount > 0 ? (
+          {pendingCount > 0 ? (
             <Link
               href="/operations/approvals"
               className="inline-flex h-9 items-center rounded-md border border-amber-900/40 bg-amber-950/20 px-4 text-sm text-amber-200 hover:bg-amber-950/40"

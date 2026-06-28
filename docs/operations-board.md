@@ -62,8 +62,8 @@ Web hook: `useOperationsBoardStream(queryPath)` — initial REST fetch + EventSo
 
 Click a card body (kanban) or list row to open a slide-over panel without leaving the board.
 
-- **Live data:** fetches `GET /requests/:id`, and when a run exists `GET /runs/:id` + pending approvals
-- **Shows:** full request body, routing decision, run status, pending approvals, last 6 run events
+- **Live data:** board SSE keeps card column/status in sync; run detail uses `GET /runs/:id/stream` SSE
+- **Shows:** full request body (one REST fetch), routing decision, live run status, pending approvals from events, last 6 run events
 - **Actions:** Start run, Open run, Review approvals
 - **Dismiss:** Escape, backdrop click, or Close button
 
