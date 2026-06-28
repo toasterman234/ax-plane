@@ -20,10 +20,12 @@ export function BoardListView({
   cards,
   onStartRun,
   startingRequestId,
+  onInspect,
 }: {
   cards: BoardCardWithColumn[];
   onStartRun: (requestId: string) => void;
   startingRequestId: string | null;
+  onInspect?: (card: BoardCardWithColumn) => void;
 }) {
   if (cards.length === 0) {
     return <p className="text-sm text-muted-foreground">No cards match the current filters.</p>;
@@ -36,7 +38,11 @@ export function BoardListView({
         const canStart = !run && (card.columnId === 'inbox' || card.columnId === 'ready');
 
         return (
-          <Card key={card.requestId} className="p-3">
+          <Card
+            key={card.requestId}
+            className={cn('p-3', onInspect && 'cursor-pointer hover:bg-muted/30')}
+            onClick={onInspect ? () => onInspect(card) : undefined}
+          >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -55,7 +61,7 @@ export function BoardListView({
                   {run?.workflowId ? ` · ${run.workflowId}` : ''}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 gap-2" onClick={(event) => event.stopPropagation()}>
                 {canStart ? (
                   <Button
                     className="h-8 gap-1.5 px-2 text-xs"

@@ -26,6 +26,7 @@ import {
   COLUMN_TONE,
   DROP_START_COLUMNS,
   filterVisibleColumns,
+  type BoardCard,
   type BoardColumn,
   isColumnDropTarget,
 } from './board-types';
@@ -35,11 +36,13 @@ function DroppableColumn({
   onStartRun,
   startingRequestId,
   activeDragId,
+  onInspect,
 }: {
   column: BoardColumn;
   onStartRun: (requestId: string) => void;
   startingRequestId: string | null;
   activeDragId: string | null;
+  onInspect?: (card: BoardCard, columnId: string) => void;
 }) {
   const acceptsDrop = isColumnDropTarget(column.id);
   const { setNodeRef, isOver } = useDroppable({
@@ -92,6 +95,7 @@ function DroppableColumn({
               columnId={column.id}
               onStartRun={onStartRun}
               starting={startingRequestId === card.requestId}
+              onInspect={onInspect}
             />
           ))
         )}
@@ -105,11 +109,13 @@ export function BoardKanban({
   onStartRun,
   startingRequestId,
   hideEmptyColumns,
+  onInspect,
 }: {
   columns: BoardColumn[];
   onStartRun: (requestId: string) => void;
   startingRequestId: string | null;
   hideEmptyColumns: boolean;
+  onInspect?: (card: BoardCard, columnId: string) => void;
 }) {
   const [activeCard, setActiveCard] = useState<{ card: TaskDragData['card']; columnId: string } | null>(null);
 
@@ -164,6 +170,7 @@ export function BoardKanban({
             onStartRun={onStartRun}
             startingRequestId={startingRequestId}
             activeDragId={activeCard?.card.requestId ?? null}
+            onInspect={onInspect}
           />
         ))}
       </div>

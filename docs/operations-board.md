@@ -45,6 +45,16 @@ The web app polls every **3s** (TanStack Query). Run detail still uses SSE on `/
 | Open run | Navigate to `/runs/:id` |
 | Review approval | `/operations/approvals` |
 | New request | `POST /requests` `{ body, autoStart: false }` |
+| Inspect card | Click card body (kanban) or row (list) → side panel |
+
+## Inspect panel
+
+Click a card body (kanban) or list row to open a slide-over panel without leaving the board.
+
+- **Live data:** fetches `GET /requests/:id`, and when a run exists `GET /runs/:id` + pending approvals
+- **Shows:** full request body, routing decision, run status, pending approvals, last 6 run events
+- **Actions:** Start run, Open run, Review approvals
+- **Dismiss:** Escape, backdrop click, or Close button
 
 ## View modes
 
@@ -71,7 +81,7 @@ Six tiles above the toolbar: **Total**, **Ready** (Inbox + Ready), **Active** (r
 - **Drop targets:** Queued or Running columns → same as Start run
 - Other columns are read-only (position is server-projected)
 
-Components: `apps/web/app/operations/board/` (`page.tsx`, `board-kanban.tsx`, `board-list.tsx`, `board-kpi-strip.tsx`, `board-card.tsx`, `board-types.ts`).
+Components: `apps/web/app/operations/board/` (`page.tsx`, `board-kanban.tsx`, `board-list.tsx`, `board-kpi-strip.tsx`, `board-inspect-panel.tsx`, `board-card.tsx`, `board-types.ts`).
 
 ## Dev notes
 
@@ -82,5 +92,4 @@ Components: `apps/web/app/operations/board/` (`page.tsx`, `board-kanban.tsx`, `b
 
 - Curated boards / domain stage columns (Option B — ben-agents3 ledger pattern)
 - SSE push instead of poll
-- Inspect side panel on card click
 - Drag to Done/Failed (no backing API)

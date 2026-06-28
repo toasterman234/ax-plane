@@ -10,11 +10,18 @@ import { cn } from '@/lib/utils';
 import { BoardKanban } from './board-kanban';
 import { BoardKpiStrip } from './board-kpi-strip';
 import { BoardListView } from './board-list';
-import { flattenBoardCards, type OperationsBoardResponse } from './board-types';
+import { BoardInspectPanel } from './board-inspect-panel';
+import { flattenBoardCards, type BoardCard, type OperationsBoardResponse } from './board-types';
 
 type Agent = { id: string; name: string; enabled: boolean };
 type Run = { id: string; requestId: string; agentId: string; status: string };
 type BoardView = 'kanban' | 'list';
+
+type SelectedInspect = {
+  card: BoardCard;
+  columnId: string;
+  columnLabel: string;
+};
 
 const VIEW_STORAGE_KEY = 'axplane-operations-board-view';
 
@@ -35,6 +42,7 @@ export default function OperationsBoardPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [startingRequestId, setStartingRequestId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<SelectedInspect | null>(null);
 
   useEffect(() => {
     setView(loadViewPreference());
@@ -103,12 +111,21 @@ export default function OperationsBoardPage() {
         body: JSON.stringify({ requestId }),
       });
       invalidateBoard();
+      setSelected(null);
       window.location.href = `/runs/${run.id}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start run');
     } finally {
       setStartingRequestId(null);
     }
+  }
+
+  function openInspect(card: BoardCard, columnId: string, columnLabel?: string) {
+    const label =
+      columnLabel ??
+      board.data?.columns.find((column) => column.id === columnId)?.label ??
+      columnId;
+    setSelected({ card, columnId, columnLabel: label });
   }
 
   return (
@@ -244,14 +261,27 @@ export default function OperationsBoardPage() {
             onStartRun={startRun}
             startingRequestId={startingRequestId}
             hideEmptyColumns={hideEmptyColumns}
+            onInspect={(card, columnId) => openInspect(card, columnId)}
           />
         ) : (
           <BoardListView
             cards={listCards}
             onStartRun={startRun}
             startingRequestId={startingRequestId}
+            onInspect={(card) => openInspect(card, card.columnId, card.columnLabel)}
           />
         )
+      ) : null}
+
+      {selected ? (
+        <BoardInspectPanel
+          card={selected.card}
+          columnId={selected.columnId}
+          columnLabel={selected.columnLabel}
+          onClose={() => setSelected(null)}
+          onStartRun={startRun}
+          starting={startingRequestId === selected.card.requestId}
+        />
       ) : null}
     </div>
   );

@@ -80,7 +80,7 @@ Single-agent runs still use `@axplane/ax-adapter` (`native` or `rlm`) — not ax
 | **Ax flows (governed)** | `runKind: axflow`, worker → ax-server SSE, `axflow.*` events, `/ax-flows` catalog + live run | ✅ |
 | **Dispatcher (governed)** | `runKind: axdispatcher`, worker → `/dispatcher` SSE, `dispatcher.*` events, `/dispatcher` UI + live run | ✅ |
 | **Agent Forge** | `@axplane/forge`, `/agents/forge` UI, `/forge/sessions/*` API — intake → heuristic/LLM scaffold → commit → optimize | ✅ |
-| **Operations board** | `GET /operations/board`, `/operations/board` kanban + list views, KPI strip, column tints, hide-empty toggle, dnd-kit drag-to-start, Operations hub Board tab | ✅ |
+| **Operations board** | `GET /operations/board`, `/operations/board` kanban + list views, KPI strip, inspect panel, column tints, hide-empty toggle, dnd-kit drag-to-start, Operations hub Board tab | ✅ |
 
 ### Agent Lab
 

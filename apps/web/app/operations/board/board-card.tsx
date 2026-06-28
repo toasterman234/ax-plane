@@ -35,16 +35,18 @@ function CardBody({
   onStartRun,
   starting,
   draggable,
+  onInspect,
 }: {
   card: BoardCard;
   onStartRun: (requestId: string) => void;
   starting: boolean;
   draggable: boolean;
+  onInspect?: () => void;
 }) {
   const run = card.latestRun;
   const showStart = !run;
 
-  return (
+  const bodyContent = (
     <>
       <p className="line-clamp-4 text-sm leading-snug">{card.body}</p>
 
@@ -79,12 +81,31 @@ function CardBody({
           </span>
         ) : null}
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {onInspect ? (
+        <button
+          type="button"
+          className="w-full space-y-2 rounded-md text-left hover:bg-muted/40"
+          onClick={onInspect}
+        >
+          {bodyContent}
+        </button>
+      ) : (
+        <div className="space-y-2">{bodyContent}</div>
+      )}
 
       <div className="flex flex-wrap gap-2 pt-1">
         {showStart ? (
           <Button
             className="h-7 shrink-0 gap-1.5 px-2 text-xs"
-            onClick={() => onStartRun(card.requestId)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onStartRun(card.requestId);
+            }}
             disabled={starting}
           >
             <Play className="h-3 w-3 shrink-0" aria-hidden />
@@ -94,6 +115,7 @@ function CardBody({
           <Link
             href={`/runs/${run!.id}`}
             className="inline-flex h-7 items-center rounded-md border border-border px-2 text-xs hover:bg-muted"
+            onClick={(event) => event.stopPropagation()}
           >
             <ExternalLink className="mr-1 h-3 w-3" />
             Open run
@@ -103,6 +125,7 @@ function CardBody({
           <Link
             href="/operations/approvals"
             className="inline-flex h-7 items-center rounded-md border border-amber-900/40 bg-amber-950/20 px-2 text-xs text-amber-200 hover:bg-amber-950/40"
+            onClick={(event) => event.stopPropagation()}
           >
             Review
           </Link>
@@ -111,6 +134,7 @@ function CardBody({
 
       <p className="font-mono text-[10px] text-muted-foreground">
         {draggable ? 'Drag to Queued or Running to start · ' : ''}
+        {onInspect ? 'Click body to inspect · ' : ''}
         {card.requestId.slice(0, 8)}…
       </p>
     </>
@@ -123,12 +147,14 @@ export function BoardCardTile({
   onStartRun,
   starting,
   isOverlay,
+  onInspect,
 }: {
   card: BoardCard;
   columnId: string;
   onStartRun: (requestId: string) => void;
   starting: boolean;
   isOverlay?: boolean;
+  onInspect?: (card: BoardCard, columnId: string) => void;
 }) {
   const draggable = !isOverlay && !card.latestRun && (columnId === 'inbox' || columnId === 'ready');
 
@@ -149,7 +175,13 @@ export function BoardCardTile({
   if (!draggable) {
     return (
       <Card className="space-y-2 p-3 shadow-sm">
-        <CardBody card={card} onStartRun={onStartRun} starting={starting} draggable={false} />
+        <CardBody
+          card={card}
+          onStartRun={onStartRun}
+          starting={starting}
+          draggable={false}
+          onInspect={onInspect && !isOverlay ? () => onInspect(card, columnId) : undefined}
+        />
       </Card>
     );
   }
@@ -180,7 +212,13 @@ export function BoardCardTile({
             <GripVertical className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1 space-y-2">
-            <CardBody card={card} onStartRun={onStartRun} starting={starting} draggable />
+            <CardBody
+              card={card}
+              onStartRun={onStartRun}
+              starting={starting}
+              draggable
+              onInspect={onInspect && !isOverlay ? () => onInspect(card, columnId) : undefined}
+            />
           </div>
         </div>
       </Card>
