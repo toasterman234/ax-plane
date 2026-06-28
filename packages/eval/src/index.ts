@@ -30,3 +30,23 @@ export {
   type LabEvalComparison,
   type ComparisonMetric,
 } from './lab-comparison';
+export {
+  axFlowScorePct,
+  pickFlowOutputText,
+  planAxFlowEvalCalls,
+  type AxFlowEvalCase,
+  type AxFlowEvalCheck,
+  type AxFlowEvalHistory,
+  type AxFlowEvalPlan,
+  type AxFlowEvalRun,
+  type AxFlowTestCase,
+  type AxFlowTestSet,
+} from './ax-flow-evals';
+export {
+  LLM_JUDGE_OUTPUT_MAX,
+  LLM_JUDGE_ROLE,
+  LLM_JUDGE_SIGNATURE,
+  normalizeFlowOutputForJudge,
+  type LlmJudgeInput,
+  type LlmJudgeVerdict,
+} from './llm-judge';

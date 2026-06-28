@@ -7,7 +7,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./lab-comparison": "./src/lab-comparison.ts",
-    "./matrix": "./src/matrix.ts"
+    "./matrix": "./src/matrix.ts",
+    "./ax-flow-evals": "./src/ax-flow-evals.ts",
+    "./llm-judge": "./src/llm-judge.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

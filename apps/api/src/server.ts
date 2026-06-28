@@ -45,6 +45,7 @@ import type { HostToolDefinition } from '@axplane/host-tools';
 import { registerForgeRoutes, handleForgeRouteError } from './forge-routes';
 import { registerExperimentsRoutes } from './experiments-routes.js';
 import { registerFlowTraceRoutes } from './flow-trace-routes.js';
+import { registerAxFlowEvalsRoutes } from './ax-flow-evals-routes.js';
 import { registerOperationsBoardRoutes } from './operations-board-routes.js';
 import { createFlowTraceTap } from './flow-trace-emit.js';
 import { buildHealthPayload } from './health-payload';
@@ -814,6 +815,7 @@ registerForgeRoutes(app, {
 
 registerExperimentsRoutes(app, repo);
 registerFlowTraceRoutes(app);
+registerAxFlowEvalsRoutes(app);
 
 app.get('/requests', async (c) => c.json(await repo.listRequests()));
 
