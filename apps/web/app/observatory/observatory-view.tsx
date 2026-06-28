@@ -5,11 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFlowTrace } from '@axplane/flow-canvas';
+import type { VisualPathExpectation } from '@axplane/flow-canvas';
 import { ConversationFlowCanvas, type FlowTraceReplayContext } from '@axplane/flow-canvas/components';
 import DispatcherTabPage from '@/app/workflows/dispatcher/page';
 import { Card } from '@/components/ui/card';
 import { API_URL, api } from '@/lib/api';
 import { ObservatoryEvalPanel } from './observatory-eval-panel';
+import { ObservatoryAxFlowEvalPanel } from './observatory-ax-flow-eval-panel';
 import { ObservatoryRoutingEvalPanel } from './observatory-routing-eval-panel';
 import { ObservatoryTracePanel } from './observatory-trace-panel';
 
@@ -21,6 +23,7 @@ type ReplaySession = {
   prompt: string;
   expectFirst?: string | null;
   expectAny?: string[];
+  visualExpectation: VisualPathExpectation;
   status: 'running' | 'passed' | 'failed' | 'error';
   failureReason: string | null;
 };
@@ -66,6 +69,7 @@ export function ObservatoryView() {
       prompt: s.prompt,
       expectFirst: s.expectFirst,
       expectAny: s.expectAny,
+      visual: s.visualExpectation,
       status: s.status,
       failureReason: s.failureReason,
     };
@@ -136,6 +140,19 @@ export function ObservatoryView() {
                     {replay ? `Replay · ${replay.caseId}` : 'Conversation flow'}
                   </h2>
                   {statusLine ? <p className="mt-0.5 text-xs">{statusLine}</p> : null}
+                  {replay?.visual ? (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Expected path:{' '}
+                      <span className="font-medium text-foreground">
+                        {replay.visual.routeTier ?? 'route'}
+                      </span>
+                      {' · '}
+                      {replay.visual.mapNodes.join(' → ')}
+                      {replay.visual.delegates.length
+                        ? ` · delegates: ${replay.visual.delegates.join(', ')}`
+                        : null}
+                    </p>
+                  ) : null}
                 </div>
                 <form
                   className="flex flex-wrap items-center gap-2 text-xs"
@@ -183,6 +200,15 @@ export function ObservatoryView() {
             </summary>
             <div className="mt-2">
               <ObservatoryEvalPanel />
+            </div>
+          </details>
+
+          <details className="shrink-0 rounded-md border border-border bg-card/40 px-3 py-2">
+            <summary className="cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground">
+              Ax-flow LLM-judge evals — test set + run (Slice F)
+            </summary>
+            <div className="mt-2">
+              <ObservatoryAxFlowEvalPanel />
             </div>
           </details>
         </div>

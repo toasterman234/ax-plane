@@ -7,6 +7,10 @@ export type EvalRunSnapshot = {
   error?: string | null;
   events: Array<{ type: string; payloadJson?: unknown }>;
   toolCalls: Array<{ qualifiedName: string; status: string }>;
+  /** Slice E — optional routing trace for visual criteria. */
+  routeTier?: string | null;
+  delegates?: string[];
+  mapNodesVisited?: string[];
 };
 
 function readField(output: unknown, field: string): string {
@@ -25,6 +29,26 @@ function outputText(output: unknown, field?: string): string {
     .map((key) => readField(record, key))
     .filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : JSON.stringify(output);
+}
+
+function normDelegate(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function matchesDelegate(actual: string, expected: string): boolean {
+  const a = normDelegate(actual);
+  const e = normDelegate(expected);
+  return a === e || a.endsWith(`.${e.split('.').pop()}`);
+}
+
+function normalizeRouteTier(route?: string | null): string | undefined {
+  if (!route) return undefined;
+  const r = route.trim();
+  if (['trivial', 'personal_fact', 'simple_direct', 'complex_agentic'].includes(r)) return r;
+  if (/^(greet|trivial)/i.test(r)) return 'trivial';
+  if (/fact/i.test(r)) return 'personal_fact';
+  if (/(direct|simple)/i.test(r)) return 'simple_direct';
+  return 'complex_agentic';
 }
 
 function evaluateCriterion(snapshot: EvalRunSnapshot, criterion: EvalCriterion): CriterionResult {
@@ -79,6 +103,50 @@ function evaluateCriterion(snapshot: EvalRunSnapshot, criterion: EvalCriterion):
         message: passed
           ? `Event ${criterion.eventType} present`
           : `Event ${criterion.eventType} missing`,
+      };
+    }
+    case 'route_tier': {
+      const actual = normalizeRouteTier(snapshot.routeTier);
+      const passed = actual === criterion.tier;
+      return {
+        criterion,
+        passed,
+        message: passed
+          ? `Route tier is ${criterion.tier}`
+          : `Expected route tier ${criterion.tier}, got ${actual ?? 'none'}`,
+      };
+    }
+    case 'delegate_first': {
+      const first = snapshot.delegates?.[0];
+      const passed = Boolean(first && matchesDelegate(first, criterion.qualifiedName));
+      return {
+        criterion,
+        passed,
+        message: passed
+          ? `First delegate was ${criterion.qualifiedName}`
+          : `Expected first delegate ${criterion.qualifiedName}, got ${first ?? 'none'}`,
+      };
+    }
+    case 'path_includes': {
+      const visited = snapshot.mapNodesVisited ?? [];
+      const passed = visited.includes(criterion.nodeId);
+      return {
+        criterion,
+        passed,
+        message: passed
+          ? `Path includes ${criterion.nodeId}`
+          : `Path missing expected node ${criterion.nodeId} (saw: ${visited.join(', ') || 'none'})`,
+      };
+    }
+    case 'path_excludes': {
+      const visited = snapshot.mapNodesVisited ?? [];
+      const passed = !visited.includes(criterion.nodeId);
+      return {
+        criterion,
+        passed,
+        message: passed
+          ? `Path excludes ${criterion.nodeId}`
+          : `Path must not include ${criterion.nodeId}`,
       };
     }
     default:

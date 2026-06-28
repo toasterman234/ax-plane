@@ -1,5 +1,6 @@
 import { newFlowTraceRunId, publishFlowTrace } from '@axplane/flow-trace-bus';
-import { streamAxDispatcherRun, type DispatcherStreamEvent } from '@axplane/flow-canvas';
+import { streamAxDispatcherRun, type DispatcherStreamEvent, visualExpectationsFromRoutingCase } from '@axplane/flow-canvas';
+import type { VisualPathExpectation } from '@axplane/flow-canvas';
 import {
   getDispatcherRoutingCase,
   scoreRoutingCase,
@@ -17,6 +18,7 @@ export type ReplaySession = {
   expectFirst?: string | null;
   expectAny?: string[];
   path: string;
+  visualExpectation: VisualPathExpectation;
   status: 'running' | 'passed' | 'failed' | 'error';
   failureReason: string | null;
   delegates: string[];
@@ -59,6 +61,7 @@ export async function replayTrace(args: {
   }
 
   const runId = newFlowTraceRunId();
+  const visualExpectation = visualExpectationsFromRoutingCase(routingCase);
   const session: ReplaySession = {
     runId,
     caseId: routingCase.id,
@@ -66,6 +69,7 @@ export async function replayTrace(args: {
     expectFirst: routingCase.expectFirst,
     expectAny: routingCase.expectAny,
     path: routingCase.path,
+    visualExpectation,
     status: 'running',
     failureReason: null,
     delegates: [],

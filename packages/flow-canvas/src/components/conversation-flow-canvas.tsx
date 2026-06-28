@@ -17,6 +17,7 @@ import {
 } from '@xyflow/react';
 import type { FlowTraceEvent } from '@axplane/flow-trace-bus';
 import { useFlowTrace } from '../use-flow-trace';
+import type { VisualPathExpectation } from '../routing-visual-expectations';
 
 /**
  * Observatory Slice B (B1) — LIVE conversation-flow canvas.
@@ -353,7 +354,7 @@ function matchesDelegate(actual: string, expected: string): boolean {
   return a === e || a.endsWith(`.${e.split('.').pop()}`);
 }
 
-/** Slice C — eval replay metadata for ghost expected paths + pass/fail styling. */
+/** Slice C/E — eval replay metadata for ghost expected paths + pass/fail styling. */
 export type FlowTraceReplayContext = {
   caseId: string;
   prompt: string;
@@ -361,6 +362,8 @@ export type FlowTraceReplayContext = {
   expectAny?: string[];
   status: 'running' | 'passed' | 'failed' | 'error' | 'idle';
   failureReason?: string | null;
+  /** Slice E — structured expected front-door path + delegates. */
+  visual?: VisualPathExpectation | null;
 };
 
 function expectedDelegateNames(replay: FlowTraceReplayContext): string[] {
@@ -375,8 +378,47 @@ function expectedDelegateNames(replay: FlowTraceReplayContext): string[] {
 function delegateMatchesReplay(name: string, replay: FlowTraceReplayContext): boolean {
   if (replay.expectFirst && matchesDelegate(name, replay.expectFirst)) return true;
   if (replay.expectAny?.some((e) => matchesDelegate(name, e))) return true;
-  if (replay.expectFirst === null && !(replay.expectAny?.length)) return true;
+  if (replay.visual?.delegates.some((e) => matchesDelegate(name, e))) return true;
+  if (replay.expectFirst === null && !(replay.expectAny?.length) && !replay.visual?.delegates.length) return true;
   return false;
+}
+
+function applyVisualExpectations(
+  nodes: Node[],
+  edges: Edge[],
+  visual: VisualPathExpectation,
+  active: Set<string>,
+  activeEdges: Set<string>,
+  failed: boolean,
+): void {
+  const mapNodeIds = new Set(MAP_NODES.map((n) => n.key));
+  for (const node of nodes) {
+    if (!mapNodeIds.has(node.id)) continue;
+    const data = node.data as ConvNodeData;
+    const expected = visual.mapNodes.includes(node.id);
+    const actual = active.has(node.id);
+    if (expected && !actual) {
+      node.data = {
+        ...data,
+        ghost: true,
+        dimmed: false,
+        subtitle: data.subtitle ? `${data.subtitle}\n(expected path)` : 'expected path',
+      };
+    } else if (!expected && actual && failed) {
+      node.data = { ...data, error: true, dimmed: false };
+    }
+  }
+  for (const edge of edges) {
+    if (!visual.mapEdges.includes(edge.id)) continue;
+    if (activeEdges.has(edge.id)) continue;
+    edge.style = {
+      stroke: '#38bdf8',
+      strokeWidth: 2,
+      strokeDasharray: '8 4',
+      opacity: 0.75,
+    };
+    edge.animated = false;
+  }
 }
 
 function buildGraph(
@@ -459,10 +501,23 @@ function buildGraph(
     });
   });
 
-  // Ghost expected delegates (Slice C) — dashed boxes for paths the case expects.
+  if (replay?.visual) {
+    applyVisualExpectations(
+      nodes,
+      edges,
+      replay.visual,
+      active,
+      activeEdges,
+      replay.status === 'failed' || replay.status === 'error',
+    );
+  }
+
+  // Ghost expected delegates (Slice C/E) — dashed boxes for specialists the case expects.
   if (replay) {
+    const expectedDelegates =
+      replay.visual?.delegates.length ? replay.visual.delegates : expectedDelegateNames(replay);
     const actual = new Set((turn?.tools ?? []).map((t) => t.name));
-    const ghosts = expectedDelegateNames(replay).filter((name) => ! [...actual].some((a) => matchesDelegate(a, name)));
+    const ghosts = expectedDelegates.filter((name) => ! [...actual].some((a) => matchesDelegate(a, name)));
     ghosts.forEach((name, gi) => {
       const id = `ghost:${gi}`;
       nodes.push({
