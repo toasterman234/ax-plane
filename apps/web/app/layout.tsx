@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const nav = [
   ['/', 'Home'],
+  ['/chat', 'Chat'],
   ['/agents', 'Agents'],
   ['/workflows', 'Workflows'],
   ['/operations', 'Operations'],
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <Providers>
-          <div className="min-h-screen grid grid-cols-[220px_1fr] bg-background">
+          <div className="grid min-h-screen min-w-0 grid-cols-[220px_minmax(0,1fr)] bg-background">
             <aside className="border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
               <div className="mb-6 text-xl font-semibold text-sidebar-primary">Ax Plane</div>
               <nav className="space-y-1">
@@ -46,7 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 ))}
               </nav>
             </aside>
-            <main className="bg-background p-6 text-foreground">
+            <main className="min-w-0 overflow-x-hidden bg-background p-6 text-foreground">
               <AppStatusBanner />
               {children}
             </main>

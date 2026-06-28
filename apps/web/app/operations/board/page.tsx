@@ -140,7 +140,7 @@ export default function OperationsBoardPage() {
   }, [board.data, selected?.card.requestId]);
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {board.data ? (
         <BoardKpiStrip columns={board.data.columns} counts={board.data.counts} />
       ) : null}

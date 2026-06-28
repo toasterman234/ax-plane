@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -137,17 +137,6 @@ export function BoardKanban({
   const boardScrollRef = useRef<HTMLDivElement>(null);
   const wideColumns = visibleColumns.length <= 3;
 
-  useEffect(() => {
-    const container = boardScrollRef.current;
-    if (!container) return;
-    const firstWithCards = container.querySelector('[data-has-cards="true"]');
-    if (firstWithCards) {
-      firstWithCards.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
-    } else {
-      container.scrollLeft = 0;
-    }
-  }, [visibleColumns.map((column) => `${column.id}:${column.cards.length}`).join('|')]);
-
   function onDragStart(event: DragStartEvent) {
     const data = event.active.data.current as TaskDragData | undefined;
     if (data?.type !== 'Task') return;
@@ -180,7 +169,8 @@ export function BoardKanban({
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2">
+      <div ref={boardScrollRef} className="max-w-full min-w-0 overflow-x-auto pb-2">
+        <div className="flex w-max min-w-full gap-3">
         {visibleColumns.map((column) => (
           <DroppableColumn
             key={column.id}
@@ -192,6 +182,7 @@ export function BoardKanban({
             wide={wideColumns}
           />
         ))}
+        </div>
       </div>
 
       {typeof document !== 'undefined'
