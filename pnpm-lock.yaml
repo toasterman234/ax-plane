@@ -50,6 +50,9 @@ importers:
       '@axplane/flow-canvas':
         specifier: workspace:*
         version: link:../../packages/flow-canvas
+      '@axplane/flow-trace-bus':
+        specifier: workspace:*
+        version: link:../../packages/flow-trace-bus
       '@axplane/forge':
         specifier: workspace:*
         version: link:../../packages/forge

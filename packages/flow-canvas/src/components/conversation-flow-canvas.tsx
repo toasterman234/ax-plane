@@ -86,6 +86,7 @@ type ConvNodeData = {
   variant: Variant;
   running?: boolean;
   error?: boolean;
+  ghost?: boolean;
   badge?: string;
   dimmed?: boolean; // an off-path branch this message did NOT take
   details?: TurnDetail[];
@@ -167,9 +168,11 @@ function TurnRow({
 function ConvNode({ data }: NodeProps & { data: ConvNodeData }) {
   const ring = data.error
     ? 'border-red-500 ring-1 ring-red-500/40'
-    : data.running
-      ? 'border-amber-500 ring-1 ring-amber-500/40 animate-pulse'
-      : '';
+    : data.ghost
+      ? 'border-dashed border-sky-400/50 opacity-50'
+      : data.running
+        ? 'border-amber-500 ring-1 ring-amber-500/40 animate-pulse'
+        : '';
   const hasDetails = (data.details?.length ?? 0) > 0;
   return (
     <div
@@ -340,12 +343,50 @@ function tracePath(t: Turn | null): {
   return { active, activeEdges, frontier, sub };
 }
 
+function normDelegate(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function matchesDelegate(actual: string, expected: string): boolean {
+  const a = normDelegate(actual);
+  const e = normDelegate(expected);
+  return a === e || a.endsWith(`.${e.split('.').pop()}`);
+}
+
+/** Slice C — eval replay metadata for ghost expected paths + pass/fail styling. */
+export type FlowTraceReplayContext = {
+  caseId: string;
+  prompt: string;
+  expectFirst?: string | null;
+  expectAny?: string[];
+  status: 'running' | 'passed' | 'failed' | 'error' | 'idle';
+  failureReason?: string | null;
+};
+
+function expectedDelegateNames(replay: FlowTraceReplayContext): string[] {
+  const names: string[] = [];
+  if (replay.expectFirst) names.push(replay.expectFirst);
+  for (const e of replay.expectAny ?? []) {
+    if (!names.some((n) => matchesDelegate(n, e))) names.push(e);
+  }
+  return names;
+}
+
+function delegateMatchesReplay(name: string, replay: FlowTraceReplayContext): boolean {
+  if (replay.expectFirst && matchesDelegate(name, replay.expectFirst)) return true;
+  if (replay.expectAny?.some((e) => matchesDelegate(name, e))) return true;
+  if (replay.expectFirst === null && !(replay.expectAny?.length)) return true;
+  return false;
+}
+
 function buildGraph(
   turn: Turn | null,
   expanded: Set<string>,
   onToggle: (rowKey: string) => void,
+  replay?: FlowTraceReplayContext | null,
 ): { nodes: Node[]; edges: Edge[] } {
   const { active, activeEdges, frontier, sub } = tracePath(turn);
+  if (replay?.prompt && !sub.message) sub.message = clip(replay.prompt, 120);
   const loopTotal = (turn?.details ?? []).reduce((a, d) => a + (d.latencySec ?? 0), 0);
   const nodes: Node[] = MAP_NODES.map((n) => ({
     id: n.key,
@@ -389,6 +430,10 @@ function buildGraph(
   const loopNode = MAP_NODES.find((n) => n.key === 'loop')!;
   (turn?.tools ?? []).forEach((tc, i) => {
     const id = `tool:${i}`;
+    const failedReplay =
+      replay &&
+      (replay.status === 'failed' || replay.status === 'error') &&
+      !delegateMatchesReplay(tc.name, replay);
     nodes.push({
       id,
       type: 'convNode',
@@ -398,6 +443,7 @@ function buildGraph(
         variant: 'tool',
         badge: tc.isDelegate ? 'delegate' : 'tool',
         dimmed: false,
+        error: Boolean(failedReplay),
         toolArgs: tc.args,
       } satisfies ConvNodeData,
     });
@@ -405,10 +451,42 @@ function buildGraph(
       id: `loop->${id}`,
       source: 'loop',
       target: id,
-      animated: !turn?.done,
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      animated: !turn?.done && replay?.status === 'running',
+      style: {
+        stroke: failedReplay ? '#f59e0b' : '#8b5cf6',
+        strokeWidth: 2,
+      },
     });
   });
+
+  // Ghost expected delegates (Slice C) — dashed boxes for paths the case expects.
+  if (replay) {
+    const actual = new Set((turn?.tools ?? []).map((t) => t.name));
+    const ghosts = expectedDelegateNames(replay).filter((name) => ! [...actual].some((a) => matchesDelegate(a, name)));
+    ghosts.forEach((name, gi) => {
+      const id = `ghost:${gi}`;
+      nodes.push({
+        id,
+        type: 'convNode',
+        position: { x: TOOL_X + 200, y: loopNode.y + gi * 120 },
+        data: {
+          title: name,
+          subtitle: 'expected',
+          variant: 'tool',
+          badge: 'ghost',
+          ghost: true,
+          dimmed: true,
+        } satisfies ConvNodeData,
+      });
+      edges.push({
+        id: `loop->${id}`,
+        source: 'loop',
+        target: id,
+        animated: false,
+        style: { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '6 4', opacity: 0.55 },
+      });
+    });
+  }
   return { nodes, edges };
 }
 
@@ -497,6 +575,7 @@ export function reduceFlowTrace(events: FlowTraceEvent[]): Turn | null {
         turn.routeRationale = e.rationale;
         break;
       case 'thinking':
+        if (e.stage === 'case-prompt' && !turn.message) turn.message = clip(e.text, 160);
         pendingThought = e.text;
         if (e.stage && OB1_RE.test(e.stage)) turn.hasOb1 = true;
         break;
@@ -592,10 +671,12 @@ export interface ConversationFlowCanvasProps {
    * feed a trace panel) can share one connection.
    */
   events?: FlowTraceEvent[];
+  /** Eval replay (Slice C) — ghost expected delegates + pass/fail tool styling. */
+  replay?: FlowTraceReplayContext | null;
   className?: string;
 }
 
-export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, className }: ConversationFlowCanvasProps) {
+export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, replay, className }: ConversationFlowCanvasProps) {
   // Always call the hook (rules of hooks); pass a null runId when the parent
   // already supplied events so we open no second EventSource.
   const hookEvents = useFlowTrace(eventsProp ? null : (runId ?? null), { baseUrl });
@@ -613,7 +694,10 @@ export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, cla
     });
   }, []);
 
-  const { nodes, edges } = useMemo(() => buildGraph(turn, expanded, toggleRow), [turn, expanded, toggleRow]);
+  const { nodes, edges } = useMemo(
+    () => buildGraph(turn, expanded, toggleRow, replay),
+    [turn, expanded, toggleRow, replay],
+  );
 
   const [heights, setHeights] = useState<Record<string, number>>({});
   // Reset measured heights whenever the run switches so a fresh run lays out clean.

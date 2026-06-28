@@ -13,6 +13,7 @@
     "@axplane/db": "workspace:*",
     "@axplane/events": "workspace:*",
     "@axplane/flow-canvas": "workspace:*",
+    "@axplane/flow-trace-bus": "workspace:*",
     "@axplane/forge": "workspace:*",
     "@axplane/host-tools": "workspace:*",
     "@axplane/agents": "workspace:*",
