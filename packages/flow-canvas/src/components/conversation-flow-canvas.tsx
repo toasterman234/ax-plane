@@ -17,6 +17,7 @@ import {
 } from '@xyflow/react';
 import type { FlowTraceEvent } from '@axplane/flow-trace-bus';
 import { useFlowTrace } from '../use-flow-trace';
+import type { VisualPathExpectation } from '../routing-visual-expectations';
 
 /**
  * Observatory Slice B (B1) — LIVE conversation-flow canvas.
@@ -86,6 +87,7 @@ type ConvNodeData = {
   variant: Variant;
   running?: boolean;
   error?: boolean;
+  ghost?: boolean;
   badge?: string;
   dimmed?: boolean; // an off-path branch this message did NOT take
   details?: TurnDetail[];
@@ -167,9 +169,11 @@ function TurnRow({
 function ConvNode({ data }: NodeProps & { data: ConvNodeData }) {
   const ring = data.error
     ? 'border-red-500 ring-1 ring-red-500/40'
-    : data.running
-      ? 'border-amber-500 ring-1 ring-amber-500/40 animate-pulse'
-      : '';
+    : data.ghost
+      ? 'border-dashed border-sky-400/50 opacity-50'
+      : data.running
+        ? 'border-amber-500 ring-1 ring-amber-500/40 animate-pulse'
+        : '';
   const hasDetails = (data.details?.length ?? 0) > 0;
   return (
     <div
@@ -340,12 +344,91 @@ function tracePath(t: Turn | null): {
   return { active, activeEdges, frontier, sub };
 }
 
+function normDelegate(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function matchesDelegate(actual: string, expected: string): boolean {
+  const a = normDelegate(actual);
+  const e = normDelegate(expected);
+  return a === e || a.endsWith(`.${e.split('.').pop()}`);
+}
+
+/** Slice C/E — eval replay metadata for ghost expected paths + pass/fail styling. */
+export type FlowTraceReplayContext = {
+  caseId: string;
+  prompt: string;
+  expectFirst?: string | null;
+  expectAny?: string[];
+  status: 'running' | 'passed' | 'failed' | 'error' | 'idle';
+  failureReason?: string | null;
+  /** Slice E — structured expected front-door path + delegates. */
+  visual?: VisualPathExpectation | null;
+};
+
+function expectedDelegateNames(replay: FlowTraceReplayContext): string[] {
+  const names: string[] = [];
+  if (replay.expectFirst) names.push(replay.expectFirst);
+  for (const e of replay.expectAny ?? []) {
+    if (!names.some((n) => matchesDelegate(n, e))) names.push(e);
+  }
+  return names;
+}
+
+function delegateMatchesReplay(name: string, replay: FlowTraceReplayContext): boolean {
+  if (replay.expectFirst && matchesDelegate(name, replay.expectFirst)) return true;
+  if (replay.expectAny?.some((e) => matchesDelegate(name, e))) return true;
+  if (replay.visual?.delegates.some((e) => matchesDelegate(name, e))) return true;
+  if (replay.expectFirst === null && !(replay.expectAny?.length) && !replay.visual?.delegates.length) return true;
+  return false;
+}
+
+function applyVisualExpectations(
+  nodes: Node[],
+  edges: Edge[],
+  visual: VisualPathExpectation,
+  active: Set<string>,
+  activeEdges: Set<string>,
+  failed: boolean,
+): void {
+  const mapNodeIds = new Set(MAP_NODES.map((n) => n.key));
+  for (const node of nodes) {
+    if (!mapNodeIds.has(node.id)) continue;
+    const data = node.data as ConvNodeData;
+    const expected = visual.mapNodes.includes(node.id);
+    const actual = active.has(node.id);
+    if (expected && !actual) {
+      node.data = {
+        ...data,
+        ghost: true,
+        dimmed: false,
+        subtitle: data.subtitle ? `${data.subtitle}\n(expected path)` : 'expected path',
+      };
+    } else if (!expected && actual && failed) {
+      node.data = { ...data, error: true, dimmed: false };
+    }
+  }
+  for (const edge of edges) {
+    if (!visual.mapEdges.includes(edge.id)) continue;
+    if (activeEdges.has(edge.id)) continue;
+    edge.style = {
+      stroke: '#38bdf8',
+      strokeWidth: 2,
+      strokeDasharray: '8 4',
+      opacity: 0.75,
+    };
+    edge.animated = false;
+  }
+}
+
 function buildGraph(
   turn: Turn | null,
   expanded: Set<string>,
   onToggle: (rowKey: string) => void,
+  replay?: FlowTraceReplayContext | null,
 ): { nodes: Node[]; edges: Edge[] } {
   const { active, activeEdges, frontier, sub } = tracePath(turn);
+  if (replay?.prompt && !sub.message) sub.message = clip(replay.prompt, 120);
   const loopTotal = (turn?.details ?? []).reduce((a, d) => a + (d.latencySec ?? 0), 0);
   const nodes: Node[] = MAP_NODES.map((n) => ({
     id: n.key,
@@ -389,6 +472,10 @@ function buildGraph(
   const loopNode = MAP_NODES.find((n) => n.key === 'loop')!;
   (turn?.tools ?? []).forEach((tc, i) => {
     const id = `tool:${i}`;
+    const failedReplay =
+      replay &&
+      (replay.status === 'failed' || replay.status === 'error') &&
+      !delegateMatchesReplay(tc.name, replay);
     nodes.push({
       id,
       type: 'convNode',
@@ -398,6 +485,7 @@ function buildGraph(
         variant: 'tool',
         badge: tc.isDelegate ? 'delegate' : 'tool',
         dimmed: false,
+        error: Boolean(failedReplay),
         toolArgs: tc.args,
       } satisfies ConvNodeData,
     });
@@ -405,10 +493,55 @@ function buildGraph(
       id: `loop->${id}`,
       source: 'loop',
       target: id,
-      animated: !turn?.done,
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      animated: !turn?.done && replay?.status === 'running',
+      style: {
+        stroke: failedReplay ? '#f59e0b' : '#8b5cf6',
+        strokeWidth: 2,
+      },
     });
   });
+
+  if (replay?.visual) {
+    applyVisualExpectations(
+      nodes,
+      edges,
+      replay.visual,
+      active,
+      activeEdges,
+      replay.status === 'failed' || replay.status === 'error',
+    );
+  }
+
+  // Ghost expected delegates (Slice C/E) — dashed boxes for specialists the case expects.
+  if (replay) {
+    const expectedDelegates =
+      replay.visual?.delegates.length ? replay.visual.delegates : expectedDelegateNames(replay);
+    const actual = new Set((turn?.tools ?? []).map((t) => t.name));
+    const ghosts = expectedDelegates.filter((name) => ! [...actual].some((a) => matchesDelegate(a, name)));
+    ghosts.forEach((name, gi) => {
+      const id = `ghost:${gi}`;
+      nodes.push({
+        id,
+        type: 'convNode',
+        position: { x: TOOL_X + 200, y: loopNode.y + gi * 120 },
+        data: {
+          title: name,
+          subtitle: 'expected',
+          variant: 'tool',
+          badge: 'ghost',
+          ghost: true,
+          dimmed: true,
+        } satisfies ConvNodeData,
+      });
+      edges.push({
+        id: `loop->${id}`,
+        source: 'loop',
+        target: id,
+        animated: false,
+        style: { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '6 4', opacity: 0.55 },
+      });
+    });
+  }
   return { nodes, edges };
 }
 
@@ -442,12 +575,15 @@ function layoutRanks(nodes: Node[], heights: Record<string, number>): Node[] {
 }
 
 // Re-fit the viewport when the run changes. Must live inside <ReactFlowProvider>.
-function FitOnRun({ runKey }: { runKey?: string }) {
+function FitOnRun({ graphKey }: { graphKey?: string }) {
   const { fitView } = useReactFlow();
   useEffect(() => {
-    const id = setTimeout(() => void fitView({ padding: 0.18, duration: 300 }), 90);
+    const id = setTimeout(
+      () => void fitView({ padding: 0.06, duration: 280, maxZoom: 1.15, minZoom: 0.08 }),
+      120,
+    );
     return () => clearTimeout(id);
-  }, [runKey, fitView]);
+  }, [graphKey, fitView]);
   return null;
 }
 
@@ -497,6 +633,7 @@ export function reduceFlowTrace(events: FlowTraceEvent[]): Turn | null {
         turn.routeRationale = e.rationale;
         break;
       case 'thinking':
+        if (e.stage === 'case-prompt' && !turn.message) turn.message = clip(e.text, 160);
         pendingThought = e.text;
         if (e.stage && OB1_RE.test(e.stage)) turn.hasOb1 = true;
         break;
@@ -592,10 +729,12 @@ export interface ConversationFlowCanvasProps {
    * feed a trace panel) can share one connection.
    */
   events?: FlowTraceEvent[];
+  /** Eval replay (Slice C) — ghost expected delegates + pass/fail tool styling. */
+  replay?: FlowTraceReplayContext | null;
   className?: string;
 }
 
-export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, className }: ConversationFlowCanvasProps) {
+export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, replay, className }: ConversationFlowCanvasProps) {
   // Always call the hook (rules of hooks); pass a null runId when the parent
   // already supplied events so we open no second EventSource.
   const hookEvents = useFlowTrace(eventsProp ? null : (runId ?? null), { baseUrl });
@@ -613,7 +752,10 @@ export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, cla
     });
   }, []);
 
-  const { nodes, edges } = useMemo(() => buildGraph(turn, expanded, toggleRow), [turn, expanded, toggleRow]);
+  const { nodes, edges } = useMemo(
+    () => buildGraph(turn, expanded, toggleRow, replay),
+    [turn, expanded, toggleRow, replay],
+  );
 
   const [heights, setHeights] = useState<Record<string, number>>({});
   // Reset measured heights whenever the run switches so a fresh run lays out clean.
@@ -660,17 +802,18 @@ export function ConversationFlowCanvas({ runId, baseUrl, events: eventsProp, cla
             onNodesChange={onNodesChange}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.18 }}
+            fitViewOptions={{ padding: 0.06, maxZoom: 1.15 }}
             proOptions={{ hideAttribution: true }}
             nodesConnectable={false}
             nodesDraggable={false}
             edgesFocusable={false}
             deleteKeyCode={null}
-            minZoom={0.2}
+            minZoom={0.08}
+            maxZoom={1.5}
           >
             <Background gap={16} color="#334155" />
             <Controls showInteractive={false} className="!bg-slate-900 !border-slate-700" />
-            <FitOnRun runKey={runId ?? undefined} />
+            <FitOnRun graphKey={`${runId ?? 'idle'}-${laidOut.length}`} />
           </ReactFlow>
         </ReactFlowProvider>
       </div>

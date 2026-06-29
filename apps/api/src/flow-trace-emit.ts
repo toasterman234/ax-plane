@@ -40,9 +40,8 @@ export function dispatcherEventToFlowTrace(
         mechanism: event.mechanism,
         rationale: event.rationale,
       };
-    case 'thought':
-      return { runId, kind: 'thinking', text: event.text };
     case 'turn':
+      // `thought` may ride on turn payloads; standalone `type: 'thought'` is WIP-only.
       return {
         runId,
         kind: 'turn_complete',
@@ -134,6 +133,11 @@ function emitFrame(frame: string, runId: string): void {
   const raw = line.slice(5).trim();
   const event = parseDispatcherSsePayload(raw);
   if (!event) return;
+  publishDispatcherEvent(runId, event);
+}
+
+/** Publish one parsed dispatcher SSE event onto the bus (eval replay + chat tap). */
+export function publishDispatcherEvent(runId: string, event: DispatcherStreamEvent): void {
   const mapped = dispatcherEventToFlowTrace(runId, event);
   if (mapped) publishFlowTrace(mapped);
 }

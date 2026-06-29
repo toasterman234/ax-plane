@@ -4,6 +4,25 @@
 
 @import '@xyflow/react/dist/style.css';
 
+/* Observatory — React Flow needs an explicit height chain from the flex parent. */
+.observatory-canvas-host {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: min(78vh, 960px);
+  height: 100%;
+  width: 100%;
+}
+
+.observatory-canvas-host > div {
+  height: 100%;
+  width: 100%;
+}
+
+.observatory-canvas-host .react-flow {
+  width: 100%;
+  height: 100%;
+}
+
 /* tweakcn preset: Twitter — https://tweakcn.com/r/themes/twitter */
 @layer base {
   :root {

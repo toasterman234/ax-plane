@@ -20,6 +20,7 @@ import { api } from '@/lib/api';
 import { streamAxEngineFlowRun } from '@/lib/ax-flow-sse';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { AxFlowEvalsPanel } from '@/components/ax-flow/ax-flow-evals-panel';
 
 type RequestRow = { id: string; body: string; agentId: string };
 
@@ -215,6 +216,8 @@ export function AxFlowDetailPanel({ flow }: { flow: FlowEntry }) {
         ) : null}
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
       </Card>
+
+      <AxFlowEvalsPanel flowId={flow.id} stageCount={flow.spec.nodes.length} />
 
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between gap-2">

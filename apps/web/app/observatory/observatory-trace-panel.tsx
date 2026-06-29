@@ -1,16 +1,10 @@
 'use client';
 
 import type { FlowTraceEvent } from '@axplane/flow-canvas/components';
-import { DispatcherTracePanel } from '@/components/dispatcher-trace-panel';
 
 /**
- * Observatory right panel (Slice B2) — live model reasoning surfaced from the
- * same `FlowTraceEvent[]` the canvas paints, above the existing
- * `DispatcherTracePanel` (inline Langfuse generations + deep link).
- *
- * The thinking list is derived from `kind: 'thinking'` events so the panel needs
- * no second data source; `traceId` feeds the Langfuse panel (seeded from the URL
- * until Slice C wires the active run's trace id through).
+ * Observatory right panel (Slice B2) — live model reasoning from `FlowTraceEvent[]`.
+ * Langfuse inline detail lands with the dispatcher-chat WIP; traceId shows a stub until then.
  */
 export function ObservatoryTracePanel({
   events,
@@ -52,9 +46,13 @@ export function ObservatoryTracePanel({
         </div>
       </div>
 
-      {/* Inline Langfuse generations + deep link (full trace depth). */}
       {traceId ? (
-        <DispatcherTracePanel traceId={traceId} live />
+        <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+          Langfuse trace{' '}
+          <span className="font-mono text-foreground">{traceId.slice(0, 12)}…</span>
+          {' — '}
+          inline generations arrive in a follow-up slice; open Langfuse for full depth.
+        </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
           Langfuse trace detail appears here once a trace id is attached to the run.

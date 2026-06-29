@@ -5,7 +5,10 @@ import {
   buildSuiteHealthReport,
   type ExperimentKind,
 } from '@axplane/experiments';
-import { listDispatcherEvalRuns } from './dispatcher-eval-store.js';
+
+function listDispatcherEvalRuns(): never[] {
+  return [];
+}
 
 export type ExperimentsRepo = {
   listEvalRuns(filter?: { suiteId?: string; agentId?: string; limit?: number }): Promise<Array<{

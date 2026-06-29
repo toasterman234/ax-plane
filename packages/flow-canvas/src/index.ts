@@ -84,3 +84,11 @@ export {
 } from './pattern-meta';
 export type { DispatcherStreamEvent } from './dispatcher-types';
 export { parseDispatcherSsePayload } from './dispatcher-types';
+export {
+  visualExpectationsFromRoutingCase,
+  normalizeRouteTier,
+  type VisualPathExpectation,
+  type RouteTier,
+  type RoutingCaseShape,
+} from './routing-visual-expectations';
+export { useFlowTrace, type UseFlowTraceOptions } from './use-flow-trace';

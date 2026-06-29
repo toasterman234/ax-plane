@@ -34,4 +34,39 @@ describe('scoreEvalCase', () => {
     );
     expect(score.score).toBe(100);
   });
+
+  it('scores Slice E visual routing criteria', () => {
+    const snapshot = {
+      status: 'completed' as const,
+      outputJson: {},
+      events: [],
+      toolCalls: [],
+      routeTier: 'complex_agentic',
+      delegates: ['team.coder'],
+      mapNodesVisited: ['message', 'greeting', 'classify', 'complex', 'loop', 'answer'],
+    };
+    const score = scoreEvalCase(snapshot, [
+      { type: 'route_tier', tier: 'complex_agentic' },
+      { type: 'delegate_first', qualifiedName: 'team.coder' },
+      { type: 'path_includes', nodeId: 'loop' },
+      { type: 'path_excludes', nodeId: 'fast' },
+    ]);
+    expect(score.score).toBe(100);
+    expect(score.passed).toBe(4);
+  });
+
+  it('fails path_includes when node missing', () => {
+    const score = scoreEvalCase(
+      {
+        status: 'completed',
+        outputJson: {},
+        events: [],
+        toolCalls: [],
+        mapNodesVisited: ['message', 'greeting', 'fast'],
+      },
+      [{ type: 'path_includes', nodeId: 'loop' }],
+    );
+    expect(score.score).toBe(0);
+    expect(score.results[0]?.passed).toBe(false);
+  });
 });
